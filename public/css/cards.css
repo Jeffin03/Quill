@@ -1,0 +1,285 @@
+/* ══════════════════════════════════════════
+   Quill — Context Cards Styles
+   ══════════════════════════════════════════ */
+
+.cards-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-md);
+  text-align: center;
+}
+
+.cards-empty p {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── Card Groups ────────────────────────── */
+
+.card-group {
+  margin-bottom: var(--space-lg);
+}
+
+.card-group-header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+  padding: 0 var(--space-xs);
+}
+
+/* ── Individual Cards ───────────────────── */
+
+.context-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+  position: relative;
+  transition: all var(--transition-base);
+  cursor: default;
+}
+
+.context-card:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-tertiary);
+}
+
+/* Type-based left border accent */
+.context-card[data-type="character"] {
+  border-left: 3px solid var(--color-character);
+}
+
+.context-card[data-type="relationship"] {
+  border-left: 3px solid var(--color-relationship);
+}
+
+.context-card[data-type="plot"] {
+  border-left: 3px solid var(--color-plot);
+}
+
+.context-card[data-type="world"] {
+  border-left: 3px solid var(--color-world);
+}
+
+.context-card[data-type="arc"] {
+  border-left: 3px solid var(--color-arc);
+}
+
+/* Card header */
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.card-type-icon {
+  font-size: 14px;
+  margin-right: var(--space-xs);
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  outline: none;
+  font-family: var(--font-ui);
+  transition: border-color var(--transition-fast);
+}
+
+.card-title:hover {
+  border-color: var(--border);
+}
+
+.card-title:focus {
+  border-color: var(--accent-dim);
+}
+
+.card-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.context-card:hover .card-actions {
+  opacity: 1;
+}
+
+.card-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.card-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.card-action-btn.delete:hover {
+  color: var(--color-relationship);
+  background: rgba(247, 118, 142, 0.1);
+}
+
+/* Card fields */
+.card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.card-field {
+  display: flex;
+  gap: var(--space-sm);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.card-field-key {
+  color: var(--text-muted);
+  font-weight: 500;
+  min-width: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-field-key::after {
+  content: ':';
+}
+
+.card-field-value {
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 3px;
+  padding: 0 3px;
+  outline: none;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+  transition: border-color var(--transition-fast);
+}
+
+.card-field-value:hover {
+  border-color: var(--border);
+}
+
+.card-field-value:focus {
+  border-color: var(--accent-dim);
+  color: var(--text-primary);
+}
+
+/* Card update animation */
+.context-card.updated {
+  animation: cardPulse 0.8s ease;
+}
+
+@keyframes cardPulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-glow-strong);
+  }
+  50% {
+    box-shadow: 0 0 12px 4px var(--accent-glow-strong);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* New card animation */
+.context-card.new-card {
+  animation: cardSlideIn 0.4s ease;
+}
+
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── Card Fields Editor (in modal) ──────── */
+
+.card-fields-editor {
+  margin-top: var(--space-sm);
+}
+
+.card-fields-editor > label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.card-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.field-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.field-row input {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  outline: none;
+}
+
+.field-row input:first-child {
+  max-width: 120px;
+}
+
+.field-row input:focus {
+  border-color: var(--accent-dim);
+}
+
+.field-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+
+.field-remove:hover {
+  color: var(--color-relationship);
+}
