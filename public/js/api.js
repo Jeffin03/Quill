@@ -1,211 +1,247 @@
 /* ══════════════════════════════════════════
-   Quill — API Client
+   Quill — API Client (Serverless)
+   Replaces server fetch calls with direct
+   IndexedDB reads/writes via QuillDB.
+   The QuillAPI interface is kept identical
+   so app.js, cards.js etc. need no changes.
    ══════════════════════════════════════════ */
 
 window.QuillAPI = {
-  /**
-   * Fetch all stories (metadata only).
-   */
+
+  // ── Stories ──────────────────────────────
+
   async listStories() {
-    const res = await fetch('/api/stories');
-    if (!res.ok) throw new Error('Failed to load stories');
-    return res.json();
+    return QuillDB.listStories();
   },
 
-  /**
-   * Get a full story by ID.
-   */
   async getStory(id) {
-    const res = await fetch(`/api/stories/${id}`);
-    if (!res.ok) throw new Error('Story not found');
-    return res.json();
+    const story = await QuillDB.getStory(id);
+    if (!story) throw new Error('Story not found');
+    return story;
   },
 
-  /**
-   * Create a new story.
-   */
   async createStory(data) {
-    const res = await fetch('/api/stories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to create story');
-    return res.json();
+    const story = {
+      id: crypto.randomUUID(),
+      title: data.title || 'Untitled Story',
+      settings: {
+        genre: data.genre || 'general fiction',
+        pacing: data.pacing || 'natural',
+        tone: data.tone || 'atmospheric',
+      },
+      messages: [],
+      cards: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    return QuillDB.saveStory(story);
   },
 
-  /**
-   * Update story metadata.
-   */
   async updateStory(id, data) {
-    const res = await fetch(`/api/stories/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to update story');
-    return res.json();
+    const story = await QuillDB.getStory(id);
+    if (!story) throw new Error('Story not found');
+    const updated = { ...story, ...data };
+    return QuillDB.saveStory(updated);
   },
 
-  /**
-   * Delete a story.
-   */
   async deleteStory(id) {
-    const res = await fetch(`/api/stories/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Failed to delete story');
+    return QuillDB.deleteStory(id);
   },
 
+  // ── Chat (Client-Side Streaming) ─────────
+
   /**
-   * Send a chat message and receive a streamed response via SSE.
-   * Returns an object with methods to handle the stream.
+   * Stream a chat response from the LLM directly.
+   * The story is read from and saved to IndexedDB.
+   * Returns { abort } to cancel the stream.
    */
   streamChat(storyId, message, { onChunk, onDone, onError }) {
-    const controller = new AbortController();
+    let abortFn = null;
 
     (async () => {
       try {
-        const res = await fetch(`/api/stories/${storyId}/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message }),
-          signal: controller.signal,
-        });
+        const story = await QuillDB.getStory(storyId);
+        if (!story) throw new Error('Story not found');
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-          onError?.(err.error || 'Chat request failed');
-          return;
-        }
+        // Save user message
+        const userMsg = {
+          id: crypto.randomUUID(),
+          role: 'user',
+          content: message,
+          timestamp: new Date().toISOString(),
+        };
+        story.messages.push(userMsg);
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
+        // Build system prompt
+        const systemPrompt = buildSystemPrompt(story);
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        // Build conversation history
+        const llmMessages = [
+          { role: 'system', content: systemPrompt },
+          ...story.messages.map(m => ({ role: m.role, content: m.content })),
+        ];
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+        let fullContent = '';
+        const stream = QuillLLM.streamChat(
+          llmMessages,
+          (chunk) => {
+            fullContent += chunk;
+            onChunk?.(chunk);
+          },
+          async (fullResponse) => {
+            // Parse out cards from the response
+            const prose = QuillCardEngine.stripCardBlock(fullResponse);
+            const cardUpdates = QuillCardEngine.parseCardUpdates(fullResponse);
+            const updatedCards = QuillCardEngine.applyCardUpdates(story.cards || [], cardUpdates);
 
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith('data: ')) continue;
+            // Save assistant message
+            const assistantMsg = {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: prose,
+              timestamp: new Date().toISOString(),
+            };
+            story.messages.push(assistantMsg);
+            story.cards = updatedCards;
+            await QuillDB.saveStory(story);
 
-            try {
-              const data = JSON.parse(trimmed.slice(6));
-
-              switch (data.type) {
-                case 'chunk':
-                  onChunk?.(data.content);
-                  break;
-                case 'done':
-                  onDone?.(data);
-                  break;
-                case 'error':
-                  onError?.(data.error);
-                  break;
-              }
-            } catch {
-              // Skip malformed events
-            }
+            onDone?.({ prose, cards: updatedCards, messageId: assistantMsg.id });
           }
-        }
+        );
+
+        abortFn = stream.abort;
+
       } catch (err) {
-        if (err.name !== 'AbortError') {
-          onError?.(err.message);
-        }
+        onError?.(err.message);
       }
     })();
 
-    return { abort: () => controller.abort() };
+    return { abort: () => abortFn?.() };
   },
 
-  /**
-   * Update a specific message.
-   */
+  // ── Message Editing ──────────────────────
+
   async updateMessage(storyId, messageId, content) {
-    const res = await fetch(`/api/stories/${storyId}/messages/${messageId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
-    });
-    if (!res.ok) throw new Error('Failed to update message');
-    return res.json();
+    const story = await QuillDB.getStory(storyId);
+    if (!story) throw new Error('Story not found');
+    const msg = story.messages.find(m => m.id === messageId);
+    if (!msg) throw new Error('Message not found');
+    msg.content = content;
+    msg.editedAt = new Date().toISOString();
+    await QuillDB.saveStory(story);
+    return msg;
   },
 
-  /**
-   * Rewind the timeline to a specific message index.
-   */
+  // ── Timeline Rewind ──────────────────────
+
   async rewindTimeline(storyId, messageIndex) {
-    const res = await fetch(`/api/stories/${storyId}/rewind`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messageIndex }),
-    });
-    if (!res.ok) throw new Error('Failed to rewind timeline');
-    return res.json();
+    const story = await QuillDB.getStory(storyId);
+    if (!story) throw new Error('Story not found');
+    story.messages = story.messages.slice(0, messageIndex);
+    await QuillDB.saveStory(story);
+    return story;
   },
 
-  // ── Card CRUD ────────────────────────────
+  // ── Cards ────────────────────────────────
 
   async getCards(storyId) {
-    const res = await fetch(`/api/cards/${storyId}`);
-    if (!res.ok) throw new Error('Failed to load cards');
-    return res.json();
-  },
-
-  async generateCardsFromPremise(storyId, premise) {
-    const res = await fetch(`/api/cards/${storyId}/magic`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ premise }),
-    });
-    if (!res.ok) throw new Error('Failed to generate cards');
-    return res.json();
+    const story = await QuillDB.getStory(storyId);
+    return story?.cards || [];
   },
 
   async createCard(storyId, data) {
-    const res = await fetch(`/api/cards/${storyId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to create card');
-    return res.json();
+    const story = await QuillDB.getStory(storyId);
+    if (!story) throw new Error('Story not found');
+    const card = {
+      id: crypto.randomUUID(),
+      type: data.type || 'world',
+      title: data.title || 'Untitled Card',
+      fields: data.fields || {},
+      lastUpdated: new Date().toISOString(),
+    };
+    story.cards = story.cards || [];
+    story.cards.push(card);
+    await QuillDB.saveStory(story);
+    return card;
   },
 
   async updateCard(storyId, cardId, data) {
-    const res = await fetch(`/api/cards/${storyId}/${cardId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to update card');
-    return res.json();
+    const story = await QuillDB.getStory(storyId);
+    if (!story) throw new Error('Story not found');
+    const idx = story.cards.findIndex(c => c.id === cardId);
+    if (idx === -1) throw new Error('Card not found');
+    story.cards[idx] = { ...story.cards[idx], ...data, lastUpdated: new Date().toISOString() };
+    await QuillDB.saveStory(story);
+    return story.cards[idx];
   },
 
   async deleteCard(storyId, cardId) {
-    const res = await fetch(`/api/cards/${storyId}/${cardId}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Failed to delete card');
+    const story = await QuillDB.getStory(storyId);
+    if (!story) throw new Error('Story not found');
+    story.cards = story.cards.filter(c => c.id !== cardId);
+    await QuillDB.saveStory(story);
+  },
+
+  async generateCardsFromPremise(storyId, premise) {
+    const story = await QuillDB.getStory(storyId);
+    if (!story) throw new Error('Story not found');
+    const newCards = await QuillCardEngine.generateCardsFromPremise(story.cards || [], premise);
+    story.cards = newCards;
+    await QuillDB.saveStory(story);
+    return newCards;
   },
 
   // ── Config ───────────────────────────────
 
   async getConfig() {
-    const res = await fetch('/api/config');
-    if (!res.ok) throw new Error('Failed to load config');
-    return res.json();
+    return QuillDB.getConfig();
   },
 
   async updateConfig(data) {
-    const res = await fetch('/api/config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to update config');
-    return res.json();
+    return QuillDB.saveConfig(data);
   },
 };
+
+// ── System Prompt Builder ─────────────────
+
+function buildSystemPrompt(story) {
+  const { genre, pacing, tone } = story.settings || {};
+
+  const pacingGuide = {
+    'slow-burn': 'Use slow, measured pacing. Focus on emotion, atmosphere, and internal thoughts. Let tension build very gradually.',
+    'moderate': 'Use balanced pacing. Mix action with reflection. Move the story forward at a comfortable rhythm.',
+    'fast': 'Use fast, punchy pacing. Keep scenes short and dynamic. Prioritize action over description.',
+    'natural': 'Let the scene dictate the pacing. Match the rhythm to what is happening emotionally and narratively.',
+  };
+
+  const pacingInstruction = pacingGuide[pacing] || pacingGuide['natural'];
+
+  // Build context from cards
+  let cardContext = '';
+  if (story.cards && story.cards.length > 0) {
+    const grouped = {};
+    for (const card of story.cards) {
+      if (!grouped[card.type]) grouped[card.type] = [];
+      grouped[card.type].push(card);
+    }
+    cardContext = '\n\n## Story Context\n';
+    for (const [type, cards] of Object.entries(grouped)) {
+      cardContext += `\n### ${type.charAt(0).toUpperCase() + type.slice(1)}s\n`;
+      for (const card of cards) {
+        cardContext += `**${card.title}**: ${Object.entries(card.fields).map(([k, v]) => `${k}: ${v}`).join(', ')}\n`;
+      }
+    }
+  }
+
+  return `You are a creative fiction co-writer for a ${genre || 'general fiction'} story. Your writing is ${tone || 'atmospheric'}, literary, and immersive.
+
+${pacingInstruction}
+
+Write ONLY the next scene or continuation of the story. Do not summarize, do not explain. Write in third person past tense. Match the emotional register of what the user directs.
+
+After your prose, you may optionally include a context card update block. This is ONLY used to track NEW story information. Do not include it unless there is something genuinely new to record. Use this format ONLY if needed:
+[[[QUILL_CARDS_START]]]
+[{"action": "create", "type": "character", "title": "Name", "fields": {"key": "value"}}]
+[[[QUILL_CARDS_END]]]
+${cardContext}`;
+}

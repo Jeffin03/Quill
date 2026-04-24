@@ -60,6 +60,19 @@ window.QuillApp = {
       QuillStoryList.loadStories();
     });
 
+    // Import story from JSON file
+    document.getElementById('btn-import-story').addEventListener('click', async () => {
+      try {
+        const story = await QuillDB.importStory();
+        QuillStoryList.loadStories();
+        alert(`"${story.title}" imported successfully!`);
+      } catch (err) {
+        if (err.message !== 'No file selected') {
+          alert('Failed to import story: ' + err.message);
+        }
+      }
+    });
+
     // Toggle tree panel
     document.getElementById('btn-toggle-tree').addEventListener('click', () => {
       this.toggleTreePanel();

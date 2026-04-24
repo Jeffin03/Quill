@@ -45,19 +45,34 @@ window.QuillStoryList = {
       card.innerHTML = `
         <h4 class="story-card-title">${QuillUtils.escapeHtml(story.title)}</h4>
         <div class="story-card-meta">
-          <span class="meta-badge">${QuillUtils.escapeHtml(story.genre || 'fiction')}</span>
-          <span class="meta-badge">${QuillUtils.escapeHtml(story.pacing || 'natural')}</span>
+          <span class="meta-badge">${QuillUtils.escapeHtml(story.settings?.genre || 'fiction')}</span>
+          <span class="meta-badge">${QuillUtils.escapeHtml(story.settings?.pacing || 'natural')}</span>
         </div>
         <div class="story-card-stats">
-          ${story.messageCount} messages · ${story.cardCount || 0} cards · ${QuillUtils.formatTime(story.updatedAt)}
+          ${story.messageCount} messages · ${QuillUtils.formatTime(story.updatedAt)}
         </div>
-        <button class="story-card-delete" data-id="${story.id}" title="Delete story">🗑</button>
+        <div class="story-card-actions">
+          <button class="story-card-export" data-id="${story.id}" title="Export story as JSON backup">💾</button>
+          <button class="story-card-delete" data-id="${story.id}" title="Delete story">🗑</button>
+        </div>
       `;
 
       // Open story on click
       card.addEventListener('click', (e) => {
         if (e.target.classList.contains('story-card-delete')) return;
+        if (e.target.classList.contains('story-card-export')) return;
         QuillApp.openStory(story.id);
+      });
+
+      // Export button
+      const exportBtn = card.querySelector('.story-card-export');
+      exportBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+          await QuillDB.exportStory(story.id);
+        } catch (err) {
+          alert('Failed to export story: ' + err.message);
+        }
       });
 
       // Delete button
