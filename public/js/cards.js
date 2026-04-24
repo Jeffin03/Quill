@@ -11,12 +11,32 @@ window.QuillCards = {
   init() {
     this.container = document.getElementById('cards-content');
     this.emptyEl = document.getElementById('cards-empty');
+    this.headerEl = document.querySelector('#cards-panel .panel-header h3');
+    this.originalHeader = this.headerEl.textContent;
+  },
+
+  /**
+   * Toggle the syncing state (visual feedback).
+   */
+  setSyncing(isSyncing) {
+    if (isSyncing) {
+      this.headerEl.innerHTML = `${this.originalHeader} <span class="sync-indicator">Syncing...</span>`;
+      this.container.classList.add('syncing');
+    } else {
+      this.headerEl.textContent = this.originalHeader;
+      this.container.classList.remove('syncing');
+    }
   },
 
   /**
    * Render all context cards grouped by type.
    */
   render(cards) {
+    // Track previous state for "updated" animation
+    const previousCardsMap = new Map(
+      (QuillApp.currentStory?.cards || []).map(c => [c.id, JSON.stringify(c.fields)])
+    );
+
     this.container.innerHTML = '';
 
     if (!cards || cards.length === 0) {
@@ -41,13 +61,13 @@ window.QuillCards = {
     // Render each group in order
     for (const type of typeOrder) {
       if (!groups[type]) continue;
-      this.renderGroup(type, groups[type]);
+      this.renderGroup(type, groups[type], previousCardsMap);
     }
 
     // Render any types not in the predefined order
     for (const [type, typeCards] of Object.entries(groups)) {
       if (!typeOrder.includes(type)) {
-        this.renderGroup(type, typeCards);
+        this.renderGroup(type, typeCards, previousCardsMap);
       }
     }
 
@@ -59,7 +79,7 @@ window.QuillCards = {
   /**
    * Render a group of cards with a header.
    */
-  renderGroup(type, cards) {
+  renderGroup(type, cards, previousCardsMap) {
     const group = document.createElement('div');
     group.className = 'card-group';
 
@@ -69,7 +89,7 @@ window.QuillCards = {
     group.appendChild(header);
 
     for (const card of cards) {
-      group.appendChild(this.renderCard(card));
+      group.appendChild(this.renderCard(card, previousCardsMap));
     }
 
     this.container.appendChild(group);
@@ -78,10 +98,13 @@ window.QuillCards = {
   /**
    * Render a single context card element.
    */
-  renderCard(card) {
-    const isNew = !this.previousCardIds.has(card.id);
+  renderCard(card, previousCardsMap) {
+    const isNew = this.previousCardIds.size > 0 && !this.previousCardIds.has(card.id);
+    const oldFieldsJson = previousCardsMap.get(card.id);
+    const isUpdated = oldFieldsJson && oldFieldsJson !== JSON.stringify(card.fields);
+
     const el = document.createElement('div');
-    el.className = `context-card ${isNew ? 'new-card' : ''}`;
+    el.className = `context-card ${isNew ? 'new-card' : ''} ${isUpdated ? 'updated' : ''}`;
     el.dataset.type = card.type;
     el.dataset.id = card.id;
 

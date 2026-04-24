@@ -35,12 +35,28 @@ async function start() {
   await ensureDataDir();
   await loadSavedConfig();
 
-  app.listen(config.port, () => {
+  const server = app.listen(config.port, '0.0.0.0', () => {
+    const address = server.address();
+    const port = address.port;
     console.log('');
     console.log('  ✒️  Quill is running');
-    console.log(`  📍 http://localhost:${config.port}`);
-    console.log(`  🤖 LLM: ${config.llm.apiUrl} (model: ${config.llm.model})`);
-    console.log('');
+    console.log(`  📍 Local:   http://localhost:${port}`);
+    
+    // Find local IP for phone access
+    import('os').then(os => {
+      const interfaces = os.networkInterfaces();
+      for (const devName in interfaces) {
+        const iface = interfaces[devName];
+        for (let i = 0; i < iface.length; i++) {
+          const alias = iface[i];
+          if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal) {
+            console.log(`  📱 Network: http://${alias.address}:${port} (for your phone)`);
+          }
+        }
+      }
+      console.log(`  🤖 LLM:     ${config.llm.apiUrl} (model: ${config.llm.model})`);
+      console.log('');
+    });
   });
 }
 

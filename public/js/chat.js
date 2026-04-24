@@ -143,8 +143,16 @@ window.QuillChat = {
     this.currentStream = QuillAPI.streamChat(story.id, message, {
       onChunk: (content) => {
         accumulator += content;
-        // Render accumulated prose as HTML
-        bubble.innerHTML = QuillUtils.proseToHtml(accumulator);
+
+        // Check if cards have started (for UI feedback)
+        if (accumulator.includes('[[[QUILL_CARDS_START]]]') && !this.cardsStarted) {
+          this.cardsStarted = true;
+          QuillCards.setSyncing(true);
+        }
+
+        // Render accumulated prose as HTML (strip cards if they started)
+        const prose = accumulator.split('[[[QUILL_CARDS_START]]]')[0];
+        bubble.innerHTML = QuillUtils.proseToHtml(prose);
         this.scrollToBottom();
       },
 
@@ -173,12 +181,16 @@ window.QuillChat = {
         QuillTree.addNode(message, data.prose);
 
         this.resetInput();
+        QuillCards.setSyncing(false);
+        this.cardsStarted = false;
       },
 
       onError: (error) => {
         streamEl.classList.remove('message-streaming');
         bubble.innerHTML = `<p style="color: var(--color-relationship);">⚠ Error: ${QuillUtils.escapeHtml(error)}</p>`;
         this.resetInput();
+        QuillCards.setSyncing(false);
+        this.cardsStarted = false;
       },
     });
   },

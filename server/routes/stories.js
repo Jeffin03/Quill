@@ -99,7 +99,7 @@ router.post('/:id/chat', async (req, res) => {
 
         if (cardsStarted) return;
 
-        const cardsIdx = fullContent.indexOf('---CARDS---');
+        const cardsIdx = fullContent.indexOf('[[[QUILL_CARDS_START]]]');
         if (cardsIdx !== -1) {
           cardsStarted = true;
           // Send any remaining prose before the marker

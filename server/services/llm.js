@@ -11,9 +11,14 @@ export async function streamChat(messages, onChunk, onDone) {
     headers['Authorization'] = `Bearer ${runtimeConfig.apiKey}`;
   }
 
+  // Create a controller to handle longer timeouts for slower CPUs
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+
   const response = await fetch(url, {
     method: 'POST',
     headers,
+    signal: controller.signal,
     body: JSON.stringify({
       model: runtimeConfig.model,
       messages,
@@ -22,6 +27,8 @@ export async function streamChat(messages, onChunk, onDone) {
       stream: true,
     }),
   });
+
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error');
@@ -82,9 +89,14 @@ export async function chat(messages) {
     headers['Authorization'] = `Bearer ${runtimeConfig.apiKey}`;
   }
 
+  // Create a controller for long timeouts
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 300000);
+
   const response = await fetch(url, {
     method: 'POST',
     headers,
+    signal: controller.signal,
     body: JSON.stringify({
       model: runtimeConfig.model,
       messages,
@@ -93,6 +105,8 @@ export async function chat(messages) {
       stream: false,
     }),
   });
+
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error');

@@ -656,3 +656,27 @@ body {
   0% { box-shadow: 0 0 0 0 var(--accent-glow-strong); }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
+
+/* ── Sync Indicator ─────────────────────── */
+.sync-indicator {
+  font-size: 10px;
+  color: var(--color-world);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: var(--space-sm);
+  animation: syncPulse 1.5s infinite;
+  font-weight: 400;
+}
+
+@keyframes syncPulse {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+.panel-body.syncing {
+  opacity: 0.7;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+

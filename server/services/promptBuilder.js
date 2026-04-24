@@ -38,23 +38,24 @@ ${formatCards(cards)}
 6. When the director gives a scene setup, flesh it out with rich detail — don't just summarize
 
 ## Context Card Updates
-After writing your prose, you MUST output updates to the story's context cards in this exact format. This section will be automatically parsed and hidden from view.
+After writing your prose, you MUST output updates to the story's context cards. This section MUST start with [[[QUILL_CARDS_START]]] and end with [[[QUILL_CARDS_END]]]. This section will be automatically parsed and hidden from view.
 
----CARDS---
+Do NOT include any introductory text or commentary before the opening tag.
+
+[[[QUILL_CARDS_START]]]
 [
   {"action": "create", "type": "character|relationship|plot|world|arc", "title": "Card Title", "fields": {"key": "value"}},
   {"action": "update", "id": "existing-card-id", "fields": {"field_name": "new_value"}},
   {"action": "delete", "id": "card-id-to-remove"}
 ]
----END CARDS---
+[[[QUILL_CARDS_END]]]
 
 Rules for card updates:
-- Only include cards that ACTUALLY changed in this scene
-- For new characters, create a character card with: appearance, personality, emotional_state, role
-- For new relationships, create a relationship card with: dynamic, tension_level, history
-- For plot developments, create/update plot cards with: status (active/resolved/foreshadowed), description
-- Keep field values concise but informative (1-2 sentences max)
-- If nothing meaningfully changed, output an empty array: []`;
+- ONLY include cards that have NEW information or have CHANGED in this scene.
+- Do NOT re-list unchanged cards. If nothing changed, output exactly: [[[QUILL_CARDS_START]]][][[[QUILL_CARDS_END]]]
+- For new characters, include: appearance, personality, emotional_state, role.
+- For new relationships, include: dynamic, tension_level, history.
+- Keep field values concise (1-2 sentences).`;
 }
 
 function getPacingDirective(pacing) {
