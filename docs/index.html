@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Quill — A fanfic co-writing studio powered by AI with context cards and branching narratives">
+  <title>Quill — Story Studio</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <meta name="theme-color" content="#d4a574">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Quill">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/chat.css">
+  <link rel="stylesheet" href="./css/cards.css">
+  <link rel="stylesheet" href="./css/tree.css">
+</head>
+<body>
+  <!-- ═══════════════════════════════════════ -->
+  <!-- Story List View (Landing)              -->
+  <!-- ═══════════════════════════════════════ -->
+  <div id="story-list-view" class="view active">
+    <div class="story-list-container">
+      <header class="story-list-header">
+        <div class="logo">
+          <span class="logo-icon">✒️</span>
+          <h1>Quill</h1>
+        </div>
+        <p class="tagline">Your fanfic co-writing studio</p>
+      </header>
+
+      <div class="story-list-actions">
+        <button id="btn-new-story" class="btn btn-primary btn-glow">
+          <span class="btn-icon">+</span>
+          New Story
+        </button>
+        <button id="btn-import-story" class="btn btn-ghost" title="Import a story from a .json backup file">
+          <span class="btn-icon">📂</span>
+          Import
+        </button>
+        <button id="btn-settings" class="btn btn-ghost">
+          <span class="btn-icon">⚙</span>
+          Settings
+        </button>
+      </div>
+
+      <div id="stories-grid" class="stories-grid">
+        <!-- Story cards rendered by JS -->
+      </div>
+
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-icon">📖</div>
+        <h3>No stories yet</h3>
+        <p>Create your first story and start directing</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- Story Workspace View                   -->
+  <!-- ═══════════════════════════════════════ -->
+  <div id="workspace-view" class="view">
+    <!-- Top Bar -->
+    <header id="workspace-header" class="workspace-header">
+      <button id="btn-back" class="btn btn-ghost btn-sm" title="Back to stories">
+        ← Stories
+      </button>
+      <div class="header-center">
+        <h2 id="story-title" class="story-title" contenteditable="true" spellcheck="false">Untitled Story</h2>
+        <div class="story-meta">
+          <span id="story-genre" class="meta-badge">genre</span>
+          <span id="story-pacing" class="meta-badge">pacing</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-toggle-tree" class="btn btn-ghost btn-sm btn-toggle" title="Toggle story tree">
+          🌿
+        </button>
+        <button id="btn-toggle-cards" class="btn btn-ghost btn-sm btn-toggle" title="Toggle context cards">
+          🃏
+        </button>
+        <button id="btn-story-settings" class="btn btn-ghost btn-sm" title="Story settings">
+          ⚙
+        </button>
+      </div>
+    </header>
+
+    <!-- Three-Panel Layout -->
+    <div class="workspace-panels">
+      <div id="mobile-overlay" class="mobile-overlay"></div>
+      
+      <!-- Left: Story Tree -->
+      <aside id="tree-panel" class="panel panel-tree">
+        <div class="panel-header">
+          <h3>Story Timeline</h3>
+        </div>
+        <div id="tree-content" class="panel-body">
+          <!-- Tree nodes rendered by JS -->
+        </div>
+      </aside>
+
+      <!-- Center: Chat -->
+      <main id="chat-panel" class="panel panel-chat">
+        <div id="chat-messages" class="chat-messages">
+          <!-- Messages rendered by JS -->
+          <div id="chat-welcome" class="chat-welcome">
+            <div class="welcome-icon">✒️</div>
+            <h3>Ready to write</h3>
+            <p>Set the scene, introduce characters, or describe the world you want to build. You direct — the AI writes.</p>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <div class="input-wrapper">
+            <textarea
+              id="chat-input"
+              placeholder="Direct the scene... (Enter to send, Shift+Enter for new line)"
+              rows="1"
+            ></textarea>
+            <button id="btn-send" class="btn-send" title="Send direction">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right: Context Cards -->
+      <aside id="cards-panel" class="panel panel-cards">
+        <div class="panel-header">
+          <h3>Context Cards</h3>
+          <div style="display: flex; gap: 4px;">
+            <button id="btn-magic-cards" class="btn btn-ghost btn-sm" title="Auto-generate cards from a premise">⚡ Auto</button>
+            <button id="btn-add-card" class="btn btn-ghost btn-sm" title="Add card manually">+</button>
+          </div>
+        </div>
+        <div id="cards-content" class="panel-body">
+          <!-- Cards rendered by JS -->
+          <div id="cards-empty" class="cards-empty">
+            <p>Cards will appear here as the story develops</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- Modals                                 -->
+  <!-- ═══════════════════════════════════════ -->
+
+  <!-- New Story Modal -->
+  <div id="modal-new-story" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>New Story</h3>
+        <button class="modal-close" data-modal="modal-new-story">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="input-story-title">Title</label>
+          <input type="text" id="input-story-title" placeholder="Give your story a name..." autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="input-story-genre">Genre</label>
+          <select id="input-story-genre">
+            <option value="romance">Romance</option>
+            <option value="dark romance">Dark Romance</option>
+            <option value="fantasy">Fantasy</option>
+            <option value="thriller">Thriller</option>
+            <option value="angst">Angst</option>
+            <option value="hurt/comfort">Hurt/Comfort</option>
+            <option value="slice of life">Slice of Life</option>
+            <option value="action">Action</option>
+            <option value="horror">Horror</option>
+            <option value="mystery">Mystery</option>
+            <option value="general fiction">General Fiction</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="input-story-pacing">Pacing</label>
+          <select id="input-story-pacing">
+            <option value="slow-burn" selected>Slow Burn 🔥</option>
+            <option value="moderate">Moderate ⚡</option>
+            <option value="fast">Fast 🚀</option>
+            <option value="natural">Natural 🌊</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="input-story-tone">Tone</label>
+          <input type="text" id="input-story-tone" placeholder="e.g., atmospheric, dramatic, tender..." value="atmospheric" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-modal="modal-new-story">Cancel</button>
+        <button id="btn-create-story" class="btn btn-primary">Create Story</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="modal-settings" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>LLM Settings</h3>
+        <button class="modal-close" data-modal="modal-settings">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="input-llm-url">API URL</label>
+          <input type="text" id="input-llm-url" placeholder="http://localhost:5000/v1" autocomplete="off">
+          <small>OpenAI-compatible endpoint (Colab, Ollama, LM Studio, etc.)</small>
+        </div>
+        <div class="form-group">
+          <label for="input-llm-model">Model</label>
+          <input type="text" id="input-llm-model" placeholder="default" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="input-llm-key">API Key</label>
+          <input type="password" id="input-llm-key" placeholder="Optional" autocomplete="off">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="input-llm-tokens">Max Tokens</label>
+            <input type="number" id="input-llm-tokens" value="2048" min="256" max="8192">
+          </div>
+          <div class="form-group">
+            <label for="input-llm-temp">Temperature</label>
+            <input type="number" id="input-llm-temp" value="0.85" min="0" max="2" step="0.05">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-modal="modal-settings">Cancel</button>
+        <button id="btn-save-settings" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Card Modal -->
+  <div id="modal-add-card" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Add Context Card</h3>
+        <button class="modal-close" data-modal="modal-add-card">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="input-card-type">Type</label>
+          <select id="input-card-type">
+            <option value="character">👤 Character</option>
+            <option value="relationship">💞 Relationship</option>
+            <option value="plot">📖 Plot Thread</option>
+            <option value="world">🌍 World</option>
+            <option value="arc">📐 Story Arc</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="input-card-title">Title</label>
+          <input type="text" id="input-card-title" placeholder="Card title..." autocomplete="off">
+        </div>
+        <div id="card-fields-editor" class="card-fields-editor">
+          <label>Fields</label>
+          <div id="card-fields-list" class="card-fields-list">
+            <!-- Dynamic field rows -->
+          </div>
+          <button id="btn-add-field" class="btn btn-ghost btn-sm">+ Add Field</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-modal="modal-add-card">Cancel</button>
+        <button id="btn-save-card" class="btn btn-primary">Add Card</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto Cards Modal -->
+  <div id="modal-magic-cards" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>⚡ Auto</h3>
+        <button class="modal-close" data-modal="modal-magic-cards">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: var(--space-md); line-height: 1.5;">
+          Paste your story premise, prologue, or character ideas below. Quill will analyze it and automatically build your starting Context Cards.
+        </p>
+        <div class="form-group">
+          <textarea id="input-magic-premise" placeholder="It was a lingering, aching goodbye, a moment stolen from the clutches of propriety..." rows="10" style="width: 100%; resize: vertical; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); padding: var(--space-sm); font-family: var(--font-prose);"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-modal="modal-magic-cards">Cancel</button>
+        <button id="btn-generate-magic" class="btn btn-primary btn-glow">Generate Cards</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts (order matters: db → llm → cardEngine → api → rest) -->
+  <script src="./js/utils.js"></script>
+  <script src="./js/db.js"></script>
+  <script src="./js/llm.js"></script>
+  <script src="./js/cardEngine.js"></script>
+  <script src="./js/api.js"></script>
+  <script src="./js/storyList.js"></script>
+  <script src="./js/chat.js"></script>
+  <script src="./js/cards.js"></script>
+  <script src="./js/tree.js"></script>
+  <script src="./js/app.js"></script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('[SW] Registered:', reg.scope))
+          .catch(err => console.warn('[SW] Registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>
