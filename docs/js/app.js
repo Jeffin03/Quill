@@ -16,6 +16,7 @@ window.QuillApp = {
     QuillChat.init();
     QuillCards.init();
     QuillTree.init();
+    QuillQR.init();
 
     // Bind global UI events
     this.bindEvents();
@@ -112,7 +113,10 @@ window.QuillApp = {
     document.querySelectorAll('.modal-close, .modal-footer .btn-ghost[data-modal]').forEach(btn => {
       btn.addEventListener('click', () => {
         const modalId = btn.dataset.modal;
-        if (modalId) this.closeModal(modalId);
+        if (modalId) {
+          this.closeModal(modalId);
+          if (modalId === 'modal-settings') QuillQR.stopScanner();
+        }
       });
     });
 
@@ -121,6 +125,7 @@ window.QuillApp = {
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
           overlay.classList.add('hidden');
+          QuillQR.stopScanner(); // Stop if settings modal was closed via overlay
         }
       });
     });
