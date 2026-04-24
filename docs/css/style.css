@@ -247,28 +247,37 @@ body {
   font-size: 12px;
 }
 
-.story-card-delete {
+.story-card-delete,
+.story-card-export {
   position: absolute;
   top: var(--space-md);
-  right: var(--space-md);
   background: none;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
   font-size: 16px;
-  opacity: 0;
   transition: all var(--transition-fast);
   padding: var(--space-xs);
   border-radius: var(--radius-sm);
+  z-index: 2;
 }
 
-.story-card:hover .story-card-delete {
-  opacity: 1;
+.story-card-delete {
+  right: var(--space-md);
+}
+
+.story-card-export {
+  right: calc(var(--space-md) + 32px);
 }
 
 .story-card-delete:hover {
   color: var(--color-relationship);
   background: rgba(247, 118, 142, 0.1);
+}
+
+.story-card-export:hover {
+  color: var(--accent);
+  background: var(--accent-glow);
 }
 
 /* ── Empty State ───────────────────────── */
