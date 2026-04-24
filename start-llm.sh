@@ -26,21 +26,35 @@ TUNNEL_PID=$!
 
 # Wait and find the URL
 echo "⏳ Waiting for tunnel URL..."
-while ! grep -q "trycloudflare.com" /tmp/quill_tunnel.log; do
+while ! grep -q "https://.*\.trycloudflare\.com" /tmp/quill_tunnel.log; do
   sleep 1
 done
+sleep 1 # Wait a beat for the line to finish writing
 
-TUNNEL_URL=$(grep -o "https://[a-zA-Z0-9.-]*\.trycloudflare.com" /tmp/quill_tunnel.log | head -n 1)
+# Grab anything that looks like a trycloudflare link
+TUNNEL_URL=$(grep -o "https://.*\.trycloudflare\.com" /tmp/quill_tunnel.log | sed 's/ //g' | tr -d '|' | head -n 1)
 
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  SCANNABLE LLM ENDPOINT"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-qrencode -t utf8 "$TUNNEL_URL/v1"
-echo ""
-echo "  URL: $TUNNEL_URL/v1"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if [ -z "$TUNNEL_URL" ]; then
+  echo "❌ Error: Could not find tunnel URL in logs."
+  echo "--- LOG CONTENT ---"
+  cat /tmp/quill_tunnel.log
+  exit 1
+fi
+
+if ! command -v qrencode &> /dev/null; then
+  echo "⚠️  qrencode not found. Run: yay -S qrencode"
+  echo "   URL: $TUNNEL_URL/v1"
+else
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  SCANNABLE LLM ENDPOINT"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  qrencode -t utf8 "$TUNNEL_URL/v1"
+  echo ""
+  echo "  URL: $TUNNEL_URL/v1"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+fi
 echo ""
 
 # Trap Ctrl+C to cleanly shut everything down

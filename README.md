@@ -1,59 +1,55 @@
-# ✒️ Quill
+# ✒️ Quill — Fanfic Studio
 
-A fanfic co-writing studio powered by AI. You direct the story, the AI writes the prose, and a **context card engine** maintains the story's living memory.
+A 100% serverless, client-side fanfic co-writing studio powered by AI. You direct the story, the AI writes the prose, and a **context card engine** maintains the story's living memory—all running directly in your browser.
 
-## Features
+## 🚀 Live Demo
+**[Launch Quill on GitHub Pages](https://jeff-m-2024.github.io/quill/)**
 
-- **Conversational co-writing** — chat-based interface where you direct and the AI writes
-- **Context cards** — the AI automatically tracks characters, relationships, plot threads, and story state
-- **Auto Premise Setup** — instantly generate your starting context cards from an existing prologue or premise
-- **Editable timeline** — edit any past message to perfectly steer the narrative
-- **Timeline Rewind** — easily prune the story tree and rewrite history from any point
-- **Mobile-friendly** — fully responsive design with sliding side panels for writing on the go
-- **Pacing control** — set slow-burn, moderate, or fast pacing and the AI respects it
-- **Pluggable LLM** — works with any OpenAI-compatible API (Colab, Ollama, LM Studio, etc.)
+## ✨ Features
 
-## Quick Start
+- **100% Serverless** — No backend required. Your stories stay in your browser (IndexedDB).
+- **Installable PWA** — Add Quill to your phone or desktop for an app-like experience.
+- **Context Cards** — The AI automatically tracks characters, relationships, and plot threads.
+- **Auto Premise Setup** — Instantly generate starting cards from an existing prologue.
+- **Mobile-Friendly** — Fully responsive design with QR-based LLM setup.
+- **Pluggable LLM** — Connects to any local or remote model (Ollama, LM Studio, Groq, etc.).
+- **Uncensored Freedom** — Tunnel your local uncensored models to the web app for private, unlimited writing.
+
+## 🛠 Quick Start (Local Development)
 
 ```bash
-# Clone and install
+# Clone and open
 git clone <your-repo-url>
 cd Quill
-npm install
 
-# Configure your LLM endpoint
-cp .env.example .env
-# Edit .env with your LLM API URL
-
-# Run
-npm start
+# Run a local web server
+npx serve docs
 ```
-
 Open `http://localhost:3000` in your browser.
 
-## LLM Setup
+## 🤖 Connecting your LLM
 
-Quill works with any backend that exposes an OpenAI-compatible `/v1/chat/completions` endpoint:
+Quill works with any OpenAI-compatible API. To use your local models (like Ollama) with the live web app:
 
-- **Google Colab**: Run a model with text-generation-webui or vLLM, use the provided URL
-- **Ollama**: `ollama serve` → set `LLM_API_URL=http://localhost:11434/v1`
-- **LM Studio**: Start the server → set `LLM_API_URL=http://localhost:1234/v1`
+1.  **Start the LLM Stack**:
+    ```bash
+    bash start-llm.sh
+    ```
+2.  **Scan the QR Code**: Open Quill on your phone, go to **Settings (⚙)**, tap the camera icon, and scan the terminal.
+3.  **Write!** Your local GPU is now powering your private, public-facing fanfic studio.
 
-## Documentation (Wiki)
+## 📚 Documentation (Wiki)
 
-Detailed guides are available in the [wiki](./wiki) directory:
+- **[Architecture](./wiki/Architecture.md)** — IndexedDB and Card Engine logic.
+- **[Setup Guide](./wiki/Setup-Guide.md)** — How to use Ollama, Cloudflare Tunnels, and Mobile.
+- **[Roadmap](./wiki/Roadmap.md)** — The plan for Phase 4: Branching/Multiverse.
 
-- **[Architecture](./wiki/Architecture.md)** — How the card engine and SSE streaming work
-- **[Setup Guide](./wiki/Setup-Guide.md)** — Step-by-step instructions for Ollama, Colab, Groq, etc.
-- **[Roadmap](./wiki/Roadmap.md)** — The plan for Branching and future features
+## 🌿 The Multiverse (In Progress)
 
-## 🌿 The Multiverse (Coming Soon)
-
-Quill is designed for branching narratives. Soon you will be able to:
-1. **Branch** from any point in the story tree.
-2. **Snapshot** context cards so each timeline has its own independent memory.
-3. **Visualize** your story tree to jump between parallel universes.
+Quill is evolving into a tool for branching narratives.
+- **Branching** from any point in the story tree.
+- **Snapshots** for independent timeline memories.
+- **Visual Story Trees** to navigate parallel universes.
 
 ## License
-
-MIT - Feel free to use, modify, and share!
+MIT
