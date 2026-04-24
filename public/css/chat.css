@@ -255,3 +255,81 @@
     opacity: 1;
   }
 }
+
+/* ── Inline Editing ─────────────────────── */
+.message-bubble-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.message-user .message-bubble-wrapper {
+  flex-direction: row-reverse;
+}
+
+.btn-edit-message {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: opacity 0.2s, background 0.2s;
+  font-size: 14px;
+}
+
+.message:hover .btn-edit-message {
+  opacity: 0.6;
+}
+
+.btn-edit-message:hover {
+  opacity: 1 !important;
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.message-edit-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  min-width: 300px;
+}
+
+.message-edit-textarea {
+  width: 100%;
+  min-height: 100px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-prose);
+  font-size: 14px;
+  padding: var(--space-sm);
+  resize: vertical;
+  outline: none;
+}
+
+.message-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+/* ── Mobile Responsiveness ──────────────── */
+
+@media (max-width: 768px) {
+  .chat-messages {
+    padding: var(--space-md) var(--space-md);
+  }
+
+  .message {
+    max-width: 95%; /* Wider bubbles on mobile */
+  }
+  
+  .message-edit-container {
+    min-width: 0; /* Prevent horizontal overflow */
+  }
+}

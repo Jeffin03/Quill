@@ -154,4 +154,44 @@ router.post('/:id/chat', async (req, res) => {
   }
 });
 
+// Update a specific message
+router.put('/:id/messages/:messageId', async (req, res) => {
+  try {
+    const story = await storyManager.getStory(req.params.id);
+    const msgIndex = story.messages.findIndex(m => m.id === req.params.messageId);
+    if (msgIndex === -1) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    
+    if (req.body.content !== undefined) {
+      story.messages[msgIndex].content = req.body.content;
+    }
+    
+    await storyManager.saveStory(story);
+    res.json(story.messages[msgIndex]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Rewind timeline (truncate messages after a given index)
+router.post('/:id/rewind', async (req, res) => {
+  try {
+    const story = await storyManager.getStory(req.params.id);
+    const { messageIndex } = req.body;
+    
+    if (messageIndex === undefined || messageIndex < 0 || messageIndex >= story.messages.length) {
+      return res.status(400).json({ error: 'Invalid message index' });
+    }
+    
+    // Keep messages up to the index (inclusive)
+    story.messages = story.messages.slice(0, messageIndex + 1);
+    
+    await storyManager.saveStory(story);
+    res.json(story);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

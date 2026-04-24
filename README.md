@@ -6,9 +6,11 @@ A fanfic co-writing studio powered by AI. You direct the story, the AI writes th
 
 - **Conversational co-writing** — chat-based interface where you direct and the AI writes
 - **Context cards** — the AI automatically tracks characters, relationships, plot threads, and story state
+- **Auto Premise Setup** — instantly generate your starting context cards from an existing prologue or premise
+- **Editable timeline** — edit any past message to perfectly steer the narrative
+- **Timeline Rewind** — easily prune the story tree and rewrite history from any point
+- **Mobile-friendly** — fully responsive design with sliding side panels for writing on the go
 - **Pacing control** — set slow-burn, moderate, or fast pacing and the AI respects it
-- **Editable memory** — view and edit context cards to steer the story
-- **Story persistence** — stories save automatically as JSON files
 - **Pluggable LLM** — works with any OpenAI-compatible API (Colab, Ollama, LM Studio, etc.)
 
 ## Quick Start

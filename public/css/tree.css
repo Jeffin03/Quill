@@ -118,3 +118,31 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* ── Tree Node Actions ──────────────────── */
+.tree-node-actions {
+  opacity: 0;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.tree-node:hover .tree-node-actions {
+  opacity: 1;
+}
+
+.btn-rewind {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+  font-size: 12px;
+}
+
+.btn-rewind:hover {
+  background: rgba(247, 118, 142, 0.1);
+  color: var(--color-relationship); /* Red/pink for destructive action */
+}

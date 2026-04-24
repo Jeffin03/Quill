@@ -122,11 +122,47 @@ window.QuillAPI = {
     return { abort: () => controller.abort() };
   },
 
+  /**
+   * Update a specific message.
+   */
+  async updateMessage(storyId, messageId, content) {
+    const res = await fetch(`/api/stories/${storyId}/messages/${messageId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    if (!res.ok) throw new Error('Failed to update message');
+    return res.json();
+  },
+
+  /**
+   * Rewind the timeline to a specific message index.
+   */
+  async rewindTimeline(storyId, messageIndex) {
+    const res = await fetch(`/api/stories/${storyId}/rewind`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageIndex }),
+    });
+    if (!res.ok) throw new Error('Failed to rewind timeline');
+    return res.json();
+  },
+
   // ── Card CRUD ────────────────────────────
 
   async getCards(storyId) {
     const res = await fetch(`/api/cards/${storyId}`);
     if (!res.ok) throw new Error('Failed to load cards');
+    return res.json();
+  },
+
+  async generateCardsFromPremise(storyId, premise) {
+    const res = await fetch(`/api/cards/${storyId}/magic`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ premise }),
+    });
+    if (!res.ok) throw new Error('Failed to generate cards');
     return res.json();
   },
 

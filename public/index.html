@@ -85,6 +85,8 @@
 
     <!-- Three-Panel Layout -->
     <div class="workspace-panels">
+      <div id="mobile-overlay" class="mobile-overlay"></div>
+      
       <!-- Left: Story Tree -->
       <aside id="tree-panel" class="panel panel-tree">
         <div class="panel-header">
@@ -126,7 +128,10 @@
       <aside id="cards-panel" class="panel panel-cards">
         <div class="panel-header">
           <h3>Context Cards</h3>
-          <button id="btn-add-card" class="btn btn-ghost btn-sm" title="Add card manually">+</button>
+          <div style="display: flex; gap: 4px;">
+            <button id="btn-magic-cards" class="btn btn-ghost btn-sm" title="Auto-generate cards from a premise">⚡ Auto</button>
+            <button id="btn-add-card" class="btn btn-ghost btn-sm" title="Add card manually">+</button>
+          </div>
         </div>
         <div id="cards-content" class="panel-body">
           <!-- Cards rendered by JS -->
@@ -263,6 +268,28 @@
       <div class="modal-footer">
         <button class="btn btn-ghost" data-modal="modal-add-card">Cancel</button>
         <button id="btn-save-card" class="btn btn-primary">Add Card</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto Cards Modal -->
+  <div id="modal-magic-cards" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>⚡ Auto</h3>
+        <button class="modal-close" data-modal="modal-magic-cards">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: var(--space-md); line-height: 1.5;">
+          Paste your story premise, prologue, or character ideas below. Quill will analyze it and automatically build your starting Context Cards.
+        </p>
+        <div class="form-group">
+          <textarea id="input-magic-premise" placeholder="It was a lingering, aching goodbye, a moment stolen from the clutches of propriety..." rows="10" style="width: 100%; resize: vertical; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); padding: var(--space-sm); font-family: var(--font-prose);"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-modal="modal-magic-cards">Cancel</button>
+        <button id="btn-generate-magic" class="btn btn-primary btn-glow">Generate Cards</button>
       </div>
     </div>
   </div>

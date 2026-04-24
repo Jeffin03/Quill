@@ -55,7 +55,7 @@ window.QuillChat = {
     }
 
     story.messages.forEach(msg => this.appendMessage(msg, false));
-    this.scrollToBottom();
+    this.scrollToBottom(true);
   },
 
   /**
@@ -78,12 +78,86 @@ window.QuillChat = {
 
     el.innerHTML = `
       <span class="message-label">${label}</span>
-      <div class="message-bubble">${content}</div>
+      <div class="message-bubble-wrapper">
+        <div class="message-bubble">${content}</div>
+        <button class="btn-edit-message" title="Edit message">✏️</button>
+      </div>
       <span class="message-time">${QuillUtils.formatTimeShort(msg.timestamp)}</span>
     `;
 
+    const editBtn = el.querySelector('.btn-edit-message');
+    const bubbleWrapper = el.querySelector('.message-bubble-wrapper');
+    const bubble = el.querySelector('.message-bubble');
+
+    editBtn.addEventListener('click', () => {
+      this.openEditMode(msg, el, bubbleWrapper, bubble);
+    });
+
     this.messagesContainer.appendChild(el);
     return el;
+  },
+
+  /**
+   * Enter edit mode for a specific message.
+   */
+  openEditMode(msg, el, wrapper, bubble) {
+    const originalContent = msg.content;
+    
+    wrapper.innerHTML = `
+      <div class="message-edit-container">
+        <textarea class="message-edit-textarea">${QuillUtils.escapeHtml(originalContent)}</textarea>
+        <div class="message-edit-actions">
+          <button class="btn btn-ghost btn-sm btn-cancel-edit">Cancel</button>
+          <button class="btn btn-primary btn-sm btn-save-edit">Save</button>
+        </div>
+      </div>
+    `;
+
+    const textarea = wrapper.querySelector('textarea');
+    const saveBtn = wrapper.querySelector('.btn-save-edit');
+    const cancelBtn = wrapper.querySelector('.btn-cancel-edit');
+
+    // Auto-resize
+    textarea.style.height = Math.min(textarea.scrollHeight, 300) + 'px';
+
+    const restoreNormalView = (newContent = originalContent) => {
+      msg.content = newContent;
+      const htmlContent = msg.role === 'assistant' 
+        ? QuillUtils.proseToHtml(newContent) 
+        : QuillUtils.escapeHtml(newContent);
+        
+      wrapper.innerHTML = `
+        <div class="message-bubble">${htmlContent}</div>
+        <button class="btn-edit-message" title="Edit message">✏️</button>
+      `;
+      wrapper.querySelector('.btn-edit-message').addEventListener('click', () => {
+        this.openEditMode(msg, el, wrapper, wrapper.querySelector('.message-bubble'));
+      });
+    };
+
+    cancelBtn.addEventListener('click', () => restoreNormalView());
+
+    saveBtn.addEventListener('click', async () => {
+      const newContent = textarea.value.trim();
+      if (!newContent) return;
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
+      try {
+        await QuillAPI.updateMessage(QuillApp.currentStory.id, msg.id, newContent);
+        
+        const storyMsg = QuillApp.currentStory.messages.find(m => m.id === msg.id);
+        if (storyMsg) storyMsg.content = newContent;
+
+        restoreNormalView(newContent);
+        QuillTree.render(QuillApp.currentStory);
+      } catch (err) {
+        console.error('Failed to update message:', err);
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+      }
+    });
   },
 
   /**
@@ -101,7 +175,7 @@ window.QuillChat = {
     `;
 
     this.messagesContainer.appendChild(el);
-    this.scrollToBottom();
+    this.scrollToBottom(true);
     return el;
   },
 
@@ -127,7 +201,7 @@ window.QuillChat = {
       timestamp: new Date().toISOString(),
     };
     this.appendMessage(userMsg);
-    this.scrollToBottom();
+    this.scrollToBottom(true);
 
     // Disable input during streaming
     this.isStreaming = true;
@@ -209,9 +283,20 @@ window.QuillChat = {
   /**
    * Scroll chat to the bottom.
    */
-  scrollToBottom() {
+  scrollToBottom(force = false) {
     requestAnimationFrame(() => {
-      this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+      if (force) {
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        return;
+      }
+      
+      // Smart scroll: only scroll if within 150px of the bottom
+      const threshold = 150;
+      const position = this.messagesContainer.scrollHeight - this.messagesContainer.scrollTop - this.messagesContainer.clientHeight;
+      
+      if (position < threshold) {
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+      }
     });
   },
 };

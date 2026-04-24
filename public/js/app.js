@@ -80,6 +80,16 @@ window.QuillApp = {
       this.saveNewCard();
     });
 
+    // Magic cards button
+    document.getElementById('btn-magic-cards').addEventListener('click', () => {
+      this.openModal('modal-magic-cards');
+    });
+
+    // Generate magic cards
+    document.getElementById('btn-generate-magic').addEventListener('click', () => {
+      this.generateMagicCards();
+    });
+
     // Add field button (in card modal)
     document.getElementById('btn-add-field').addEventListener('click', () => {
       QuillCards.addFieldRow();
@@ -101,6 +111,15 @@ window.QuillApp = {
         }
       });
     });
+
+    // Close mobile side panels on overlay click
+    const mobileOverlay = document.getElementById('mobile-overlay');
+    if (mobileOverlay) {
+      mobileOverlay.addEventListener('click', () => {
+        if (this.treePanelVisible) this.toggleTreePanel();
+        if (this.cardsPanelVisible) this.toggleCardsPanel();
+      });
+    }
 
     // Story title editing (debounced save)
     const titleEl = document.getElementById('story-title');
@@ -151,6 +170,12 @@ window.QuillApp = {
       // Switch to workspace view
       this.showView('workspace-view');
 
+      // Auto-collapse panels on mobile
+      if (window.innerWidth <= 768) {
+        if (this.treePanelVisible) this.toggleTreePanel();
+        if (this.cardsPanelVisible) this.toggleCardsPanel();
+      }
+
       // Focus chat input
       setTimeout(() => document.getElementById('chat-input').focus(), 100);
     } catch (err) {
@@ -190,9 +215,20 @@ window.QuillApp = {
   toggleTreePanel() {
     const panel = document.getElementById('tree-panel');
     const btn = document.getElementById('btn-toggle-tree');
+    const overlay = document.getElementById('mobile-overlay');
+    
     this.treePanelVisible = !this.treePanelVisible;
     panel.classList.toggle('collapsed', !this.treePanelVisible);
     btn.classList.toggle('active', this.treePanelVisible);
+    
+    if (window.innerWidth <= 768) {
+      if (this.treePanelVisible) {
+        if (this.cardsPanelVisible) this.toggleCardsPanel();
+        if (overlay) overlay.classList.add('active');
+      } else if (!this.cardsPanelVisible) {
+        if (overlay) overlay.classList.remove('active');
+      }
+    }
   },
 
   /**
@@ -201,9 +237,20 @@ window.QuillApp = {
   toggleCardsPanel() {
     const panel = document.getElementById('cards-panel');
     const btn = document.getElementById('btn-toggle-cards');
+    const overlay = document.getElementById('mobile-overlay');
+    
     this.cardsPanelVisible = !this.cardsPanelVisible;
     panel.classList.toggle('collapsed', !this.cardsPanelVisible);
     btn.classList.toggle('active', this.cardsPanelVisible);
+    
+    if (window.innerWidth <= 768) {
+      if (this.cardsPanelVisible) {
+        if (this.treePanelVisible) this.toggleTreePanel();
+        if (overlay) overlay.classList.add('active');
+      } else if (!this.treePanelVisible) {
+        if (overlay) overlay.classList.remove('active');
+      }
+    }
   },
 
   /**
@@ -306,6 +353,42 @@ window.QuillApp = {
     } catch (err) {
       console.error('Failed to create card:', err);
       alert('Failed to create card.');
+    }
+  },
+
+  /**
+   * Generate cards automatically from a premise.
+   */
+  async generateMagicCards() {
+    const storyId = this.currentStory?.id;
+    if (!storyId) return;
+
+    const premiseEl = document.getElementById('input-magic-premise');
+    const premise = premiseEl.value.trim();
+    if (!premise) {
+      alert('Please paste a premise or prologue first.');
+      return;
+    }
+
+    const btn = document.getElementById('btn-generate-magic');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing and Generating... (This may take a minute)';
+
+    try {
+      const newCards = await QuillAPI.generateCardsFromPremise(storyId, premise);
+      
+      // Update local state
+      this.currentStory.cards = newCards;
+      QuillCards.render(newCards);
+      
+      this.closeModal('modal-magic-cards');
+      premiseEl.value = ''; // clear for next time
+    } catch (err) {
+      console.error('Failed to generate magic cards:', err);
+      alert('Failed to generate cards. The AI might have timed out.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Generate Cards';
     }
   },
 };

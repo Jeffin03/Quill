@@ -86,14 +86,44 @@ window.QuillTree = {
         </div>
         <div class="tree-node-preview">${QuillUtils.escapeHtml(preview)}</div>
       </div>
+      <div class="tree-node-actions">
+        <button class="btn-rewind" title="Rewind to here">⏪</button>
+      </div>
     `;
 
     // Click to scroll to that message in chat
-    el.addEventListener('click', () => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-rewind')) return; // Ignore if clicking rewind
+      
       this.scrollToMessage(messageIndex);
       // Update active state
       this.container.querySelectorAll('.tree-node').forEach(n => n.classList.remove('active'));
       el.classList.add('active');
+    });
+
+    // Rewind handler
+    const rewindBtn = el.querySelector('.btn-rewind');
+    rewindBtn.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to rewind to this point? Everything after this will be deleted.')) {
+        return;
+      }
+      
+      try {
+        const storyId = QuillApp.currentStory.id;
+        // The index we want to keep is messageIndex + 1 (user message + ai response)
+        const keepIndex = messageIndex + 1;
+        
+        await QuillAPI.rewindTimeline(storyId, keepIndex);
+        
+        // Update local state and re-render
+        QuillApp.currentStory.messages = QuillApp.currentStory.messages.slice(0, keepIndex + 1);
+        QuillChat.render(QuillApp.currentStory);
+        this.render(QuillApp.currentStory);
+        
+      } catch (err) {
+        console.error('Failed to rewind timeline:', err);
+        alert('Failed to rewind: ' + err.message);
+      }
     });
 
     return el;

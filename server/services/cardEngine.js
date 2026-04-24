@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import * as llm from './llm.js';
 
 const CARD_BLOCK_REGEX = /\[\[\[QUILL_CARDS_START\]\]\]\s*([\s\S]*?)\s*(?:\[\[\[QUILL_CARDS_END\]\]\]|$)/;
 
@@ -114,4 +115,63 @@ export function applyCardUpdates(existingCards, updates) {
   }
 
   return cards;
+}
+
+/**
+ * Auto-generate cards from a premise string using the LLM.
+ */
+export async function generateCardsFromPremise(premise) {
+  const systemPrompt = `You are an expert story data extractor. Your job is to read the story premise and extract the key elements into structured JSON data.
+
+RULES:
+1. You MUST return ONLY a raw JSON array.
+2. No conversational text, no markdown formatting (like \`\`\`json), no explanations.
+3. The "type" field MUST be exactly one of these lowercase strings: "character", "relationship", "plot", "world", "arc". DO NOT invent new types.
+4. Keep the "fields" concise.
+
+JSON SCHEMA EXAMPLE:
+[
+  {
+    "action": "create",
+    "type": "character",
+    "title": "Elise",
+    "fields": {
+      "Role": "Undercover Agent",
+      "Traits": "Former actress, pink hair, violet eyes"
+    }
+  },
+  {
+    "action": "create",
+    "type": "relationship",
+    "title": "Elise & Lucas",
+    "fields": {
+      "Dynamic": "Allies / Acting Coach",
+      "Status": "Cooperating on mission"
+    }
+  }
+]
+
+Start your response immediately with [`;
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: premise }
+  ];
+
+  const responseText = await llm.chat(messages);
+  
+  let jsonStr = responseText.trim();
+  if (jsonStr.startsWith('\`\`\`json')) {
+    jsonStr = jsonStr.replace(/^\`\`\`json/, '').replace(/\`\`\`$/, '').trim();
+  } else if (jsonStr.startsWith('\`\`\`')) {
+    jsonStr = jsonStr.replace(/^\`\`\`/, '').replace(/\`\`\`$/, '').trim();
+  }
+  
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.warn('[CardEngine] Magic parse failed, attempting repair...');
+    const repaired = repairJson(jsonStr);
+    return JSON.parse(repaired);
+  }
 }
