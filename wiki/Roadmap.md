@@ -1,132 +1,73 @@
 # Roadmap
 
-## Current: Phase 1 — MVP ✅
+## Phase 1 — MVP ✅
 
-The foundation. A fully functional co-writing studio.
-
+The foundation. A fully functional local co-writing studio.
 - [x] Express.js backend with OpenAI-compatible LLM connector
 - [x] Streaming chat via Server-Sent Events (SSE)
 - [x] Context card engine with automatic extraction from AI responses
-- [x] Three-panel workspace (story tree, chat, context cards)
 - [x] Story CRUD with JSON file persistence
-- [x] Inline card editing (view + edit cards directly)
-- [x] Manual card creation and deletion
 - [x] Pacing directives (slow-burn, moderate, fast, natural)
-- [x] LLM settings persistence (survives server restarts)
 - [x] Dark theme with warm amber accents
-- [x] Responsive panel collapse for focused writing mode
-- [x] Story list landing page
 
 ---
 
-## Phase 2 — Branching & Multiverse 🌿
+## Phase 2 — UX Enhancements & Mobile ✅
+
+Making the core experience robust and usable on the go.
+- [x] **Inline Editing:** Edit past prompts and AI responses directly in the chat to seamlessly steer the narrative.
+- [x] **Timeline Rewind:** Truncate the story tree from any previous scene to branch off manually.
+- [x] **Auto Premise Setup:** Paste a massive prologue/premise to have the LLM automatically extract the starting context cards.
+- [x] **Smart Auto-Scroll:** Chat intelligently handles scrolling while the AI generates text.
+- [x] **Mobile Responsiveness:** Sliding side-panel drawers and dynamic UI for phones.
+
+---
+
+## Phase 3 — Serverless PWA Migration (Next Target) 📱
+
+> Decouple Quill from the Node.js backend. Turn it into a 100% static, installable Progressive Web App (PWA) that runs entirely in the browser and can be hosted for free on GitHub Pages.
+
+### Architecture Shift
+- [ ] **Delete Backend:** Remove the Express.js server completely.
+- [ ] **Direct LLM Calls:** Rewrite the frontend to securely make API calls directly to external LLMs (OpenRouter/Groq) or a local Ollama instance via CORS.
+- [ ] **IndexedDB Storage:** Replace Node.js file system saving with `localforage` or native IndexedDB to store stories permanently in the browser.
+- [ ] **Import/Export Systems:** Create robust tools to download/backup story JSON files and import them to prevent data loss.
+
+### PWA Integration
+- [ ] **App Manifest:** Add `manifest.json` so users can "Install" Quill to their phone or desktop home screen.
+- [ ] **Service Workers:** Cache the HTML/CSS/JS assets for instant loading.
+- [ ] **Offline Mode:** Allow users to read stories, edit cards, and manage timelines even on an airplane without internet (AI generation disabled while offline).
+- [ ] **Zero-Cost Deployment:** Ensure the entire `public/` directory can be dragged and dropped onto GitHub Pages or Vercel as a static site.
+
+---
+
+## Phase 4 — Branching & Multiverse 🌿
 
 > Fork the story at any point. Explore "what if" scenarios. Live in the multiverse.
 
 ### Branching System
-- [ ] **Branch from any scene** — right-click or button on a tree node → "Create Branch"
-- [ ] **Card snapshots** — each branch stores a frozen copy of context cards at the branch point, evolving independently from that point
-- [ ] **Branch labels** — user-named branches (e.g., "Dark MC Arc", "Forgiveness Route", "What If He Stayed")
-- [ ] **Branch switching** — click a branch in the tree to switch context and continue writing in that timeline
-- [ ] **Branch comparison** — side-by-side view of how two timelines diverged
-
-### Visual Story Tree
-- [ ] **Tree graph visualization** — horizontal or vertical graph showing diverging timelines with connecting lines
-- [ ] **Node previews** — hover over a node to see a preview of that scene
-- [ ] **Branch color coding** — different branches get different colors for visual distinction
-- [ ] **Collapse/expand branches** — manage complex trees without visual overload
-
-### Data Model Changes
-```json
-{
-  "tree": {
-    "rootNodeId": "node-1",
-    "nodes": {
-      "node-1": {
-        "id": "node-1",
-        "parentId": null,
-        "children": ["node-2"],
-        "label": "Chapter 1 - The Meeting",
-        "messageRange": [0, 5],
-        "cardSnapshot": [ /* cards at this point */ ],
-        "createdAt": "timestamp"
-      },
-      "node-2": {
-        "id": "node-2",
-        "parentId": "node-1",
-        "children": ["node-3", "node-4"],
-        "label": "The Argument",
-        "messageRange": [6, 10],
-        "cardSnapshot": [ /* ... */ ]
-      },
-      "node-3": {
-        "id": "node-3",
-        "parentId": "node-2",
-        "children": [],
-        "label": "Branch: MC Forgives",
-        "messageRange": [11, 18],
-        "cardSnapshot": [ /* ... */ ]
-      },
-      "node-4": {
-        "id": "node-4",
-        "parentId": "node-2",
-        "children": [],
-        "label": "Branch: MC Snaps",
-        "messageRange": [11, 15],
-        "cardSnapshot": [ /* ... */ ]
-      }
-    },
-    "activeNodeId": "node-3"
-  }
-}
-```
+- [ ] **Branch from any scene:** "Create Branch" from a past node.
+- [ ] **Card Snapshots:** Each branch remembers exactly what the context cards looked like at that moment, evolving independently.
+- [ ] **Branch Switching:** Click a timeline path to switch contexts immediately.
+- [ ] **Visual Story Tree:** An interactive graph showing diverging timelines with connecting lines.
 
 ---
 
-## Phase 3 — Polish & Power Features ✨
+## Phase 5 — Power Features & Polish ✨
 
 > Make it feel premium. Add the tools that power users need.
 
-### Pacing Controls
-- [ ] **Visual pacing slider** — drag to set the current story phase (setup → rising tension → climax → falling action → resolution)
-- [ ] **Per-scene pacing override** — temporarily change pacing for a specific scene without changing the global setting
-- [ ] **Tension meter** — visual indicator of current tension level based on card data
-
 ### Writing Tools
-- [ ] **Tone presets** — saveable tone configurations (e.g., "angsty slow burn", "chaotic comedy", "melancholic thriller")
-- [ ] **Character voice profiles** — define how each character speaks (formal, slang, poetic) and the AI stays consistent
-- [ ] **Scene templates** — pre-built scene structures (confrontation, confession, fight scene, etc.) as starting points
-- [ ] **Word count tracking** — per scene, per chapter, total story
+- [ ] **Tone presets:** Saveable tone configurations (e.g., "angsty slow burn", "melancholic thriller").
+- [ ] **Character voice profiles:** Define how characters speak so the AI stays consistent.
+- [ ] **Pacing Controls:** Visual pacing slider and tension meter based on card data.
 
-### Story Export
-- [ ] **Export to Markdown** — clean markdown file with chapter headers
-- [ ] **Export to EPUB** — proper e-book format for reading on devices
-- [ ] **Export to plain text** — simple text file
-- [ ] **Export cards** — export the story bible (all cards) as a reference document
-
-### Character Gallery
-- [ ] **Visual character browser** — grid of character cards with portraits
-- [ ] **Relationship map** — interactive graph showing connections between characters
-- [ ] **Character arc timeline** — visual timeline of a character's emotional/narrative journey
+### Export & Gallery
+- [ ] **Export to EPUB/Markdown:** Proper e-book formatting for offline reading.
+- [ ] **Character Gallery:** Visual grid of character cards with portraits.
+- [ ] **Relationship map:** Interactive graph showing connections between characters.
 
 ### Quality of Life
-- [ ] **Keyboard shortcuts** — Ctrl+Enter to send, Ctrl+/ for focused mode, etc.
-- [ ] **Search within stories** — search across all messages and cards
-- [ ] **Undo/redo** — undo the last AI response and regenerate
-- [ ] **Regenerate** — regenerate the last response with different parameters
-- [ ] **Settings page** — full settings panel with theme customization, writing preferences, and LLM config
-- [ ] **Context window management** — automatic summarization of old messages when approaching token limits
-- [ ] **Multiple AI personas** — different writing styles for different types of scenes
-
----
-
-## Stretch Goals 🌟
-
-These are ideas that would be amazing but are further out:
-
-- **Collaborative writing** — multiple users directing the same story in real-time
-- **AI illustration** — auto-generate scene illustrations using image generation models
-- **Voice narration** — text-to-speech for the story using character-specific voices
-- **Mobile app** — responsive PWA or native app for writing on the go
-- **Plugin system** — let users create custom card types, pacing modes, and export formats
-- **Fine-tuned models** — train a model specifically on high-quality fanfic for better prose
+- [ ] **Keyboard shortcuts:** Ctrl+Enter to send, Ctrl+/ for focused mode.
+- [ ] **Undo/Regenerate:** Instantly regenerate the last AI response with different parameters.
+- [ ] **Context Window Management:** Automatic summarization of old messages when approaching LLM token limits.
