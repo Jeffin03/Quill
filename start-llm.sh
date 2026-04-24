@@ -21,7 +21,8 @@ sleep 3
 
 # Start Cloudflare tunnel in the background
 echo "🌐 Starting Cloudflare Tunnel..."
-cloudflared tunnel --url http://localhost:11434 > /tmp/quill_tunnel.log 2>&1 &
+# Increased timeout to 5 minutes for slow CPU generations
+cloudflared tunnel --url http://localhost:11434 --proxy-connect-timeout 300s > /tmp/quill_tunnel.log 2>&1 &
 TUNNEL_PID=$!
 
 # Wait and find the URL
