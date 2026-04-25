@@ -285,14 +285,16 @@
         <div id="qr-reader" class="hidden" style="width: 100%; border-radius: var(--radius-md); overflow: hidden; margin-bottom: var(--space-md); border: 1px solid var(--border-accent);"></div>
         <div class="form-group">
           <label for="input-llm-model">Model</label>
-          <input type="text" id="input-llm-model" placeholder="e.g., llama3, mistral" autocomplete="off" list="list-recent-models">
+          <input type="text" id="input-llm-model" name="quill_model" placeholder="Enter name or double-click for history..." autocomplete="off" list="list-recent-models" spellcheck="false">
           <datalist id="list-recent-models">
             <!-- Populated by JS -->
           </datalist>
         </div>
+        <!-- Breaker to stop browser from thinking this is a login form -->
+        <input type="text" style="display:none;" aria-hidden="true">
         <div class="form-group">
           <label for="input-llm-key">API Key</label>
-          <input type="password" id="input-llm-key" placeholder="Optional" autocomplete="off">
+          <input type="password" id="input-llm-key" placeholder="Optional" autocomplete="new-password">
         </div>
         <div class="form-row">
           <div class="form-group">

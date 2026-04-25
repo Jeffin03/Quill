@@ -336,8 +336,12 @@ window.QuillApp = {
 
       // Populate recent models list
       const datalist = document.getElementById('list-recent-models');
-      if (datalist && config.recentModels) {
-        datalist.innerHTML = config.recentModels
+      if (datalist) {
+        const history = config.recentModels || [
+          'hf.co/mradermacher/Llama-3.2-3B-Instruct-Abliterated-GGUF',
+          'dolphin-llama3'
+        ];
+        datalist.innerHTML = history
           .map(m => `<option value="${m}">`)
           .join('');
       }
