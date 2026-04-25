@@ -2,9 +2,6 @@
 
 A 100% serverless, client-side fanfic co-writing studio powered by AI. You direct the story, the AI writes the prose, and a **context card engine** maintains the story's living memory—all running directly in your browser.
 
-## 🚀 Live Demo
-**[Launch Quill on GitHub Pages](https://jeffin03.github.io/Quill/)**
-
 ## ✨ Features
 
 - **🌿 The Multiverse** — Branch your story from any point. Create parallel timelines with independent world states and "lore snapshots."
