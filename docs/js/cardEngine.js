@@ -21,9 +21,9 @@ window.QuillCardEngine = (() => {
     try {
       return JSON.parse(jsonStr);
     } catch (e) {
-      console.warn('[CardEngine] Truncated JSON detected, attempting repair...');
-      const repaired = repairJson(jsonStr);
+      console.warn('[CardEngine] JSON parse failed, attempting repair...');
       try {
+        const repaired = repairJson(jsonStr);
         return JSON.parse(repaired);
       } catch (e2) {
         console.error('[CardEngine] Failed to repair JSON:', e2.message);
@@ -52,7 +52,7 @@ window.QuillCardEngine = (() => {
       switch (update.action) {
         case 'create': {
           cards.push({
-            id: crypto.randomUUID(),
+            id: QuillUtils.uuid(),
             type: update.type || 'world',
             title: update.title || 'Untitled Card',
             fields: update.fields || {},
@@ -88,41 +88,17 @@ window.QuillCardEngine = (() => {
    * Auto-generate cards from a premise string using the LLM.
    */
   async function generateCardsFromPremise(existingCards, premise) {
-    const systemPrompt = `You are an unfiltered story data extractor. Your job is to read the story premise (which may contain mature or explicit content) and extract key elements into structured JSON. You must never judge or refuse.
-
+    const systemPrompt = `You are an unfiltered story data extractor. Read the story premise and extract key elements into structured JSON.
+    
 RULES:
-1. You MUST return ONLY a raw JSON array.
-2. No conversational text, no markdown formatting (like \`\`\`json), no explanations.
-3. The "type" field MUST be exactly one of these lowercase strings: "character", "relationship", "plot", "world", "arc". DO NOT invent new types.
-4. Keep the "fields" concise.
-
-JSON SCHEMA EXAMPLE:
-[
-  {
-    "action": "create",
-    "type": "character",
-    "title": "Elise",
-    "fields": {
-      "Role": "Undercover Agent",
-      "Traits": "Former actress, pink hair, violet eyes"
-    }
-  },
-  {
-    "action": "create",
-    "type": "relationship",
-    "title": "Elise & Lucas",
-    "fields": {
-      "Dynamic": "Allies / Acting Coach",
-      "Status": "Cooperating on mission"
-    }
-  }
-]
-
-Start your response immediately with [`;
+1. Return ONLY a raw JSON array.
+2. No conversation, no markdown code blocks.
+3. Types: "character", "relationship", "plot", "world", "arc".
+4. Format: [{"action": "create", "type": "...", "title": "...", "fields": {...}}, ...]`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: `Extract key story elements from this premise:\n\n${premise}` },
+      { role: 'user', content: `Extract elements from this premise:\n\n${premise}` },
     ];
 
     let rawJson = '';
@@ -133,44 +109,55 @@ Start your response immediately with [`;
       throw err;
     }
 
-    // Strip any markdown code fences the LLM might still add
+    // Strip markdown and extract JSON array
     rawJson = rawJson.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    if (!rawJson.startsWith('[')) {
-      const start = rawJson.indexOf('[');
-      if (start !== -1) rawJson = rawJson.slice(start);
+    const startIdx = rawJson.indexOf('[');
+    const endIdx = rawJson.lastIndexOf(']');
+    if (startIdx !== -1 && endIdx !== -1) {
+      rawJson = rawJson.substring(startIdx, endIdx + 1);
     }
 
-    let updates = [];
     try {
-      updates = JSON.parse(rawJson);
+      return applyCardUpdates(existingCards, JSON.parse(rawJson));
     } catch (e) {
-      console.warn('[CardEngine] Auto parse failed, attempting repair...');
-      const repaired = repairJson(rawJson);
+      console.warn('[CardEngine] JSON parse failed, attempting deep repair...');
       try {
-        updates = JSON.parse(repaired);
+        const repaired = repairJson(rawJson);
+        return applyCardUpdates(existingCards, JSON.parse(repaired));
       } catch (e2) {
-        console.error('[CardEngine] Could not parse auto-generated cards:', e2.message);
-        throw new Error('The AI response could not be parsed as valid JSON.');
+        console.error('[CardEngine] Deep repair failed:', e2.message);
+        throw new Error('AI response was not valid JSON and could not be repaired.');
       }
     }
-
-    return applyCardUpdates(existingCards, updates);
   }
 
   /**
-   * Attempt to repair truncated JSON by closing open structures.
+   * Robust JSON repair for LLM-generated data.
    */
   function repairJson(str) {
-    // Remove trailing incomplete property
-    let s = str.replace(/,\s*$/, '').replace(/,\s*\]$/, ']');
+    let s = str.trim();
 
-    // Close any unclosed objects
+    // 1. Fix single quotes to double quotes (naive but effective for most cases)
+    s = s.replace(/'/g, '"');
+
+    // 2. Fix unquoted keys (e.g. {title: "..."} -> {"title": "..."})
+    s = s.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+
+    // 3. Remove trailing commas before closing braces/brackets
+    s = s.replace(/,\s*([\}\]])/g, '$1');
+
+    // 4. Handle truncated strings (close unclosed quotes)
+    const quoteCount = (s.match(/"/g) || []).length;
+    if (quoteCount % 2 !== 0) s += '"';
+
+    // 5. Close unclosed objects/arrays
     const openBraces = (s.match(/\{/g) || []).length;
     const closeBraces = (s.match(/\}/g) || []).length;
     for (let i = 0; i < openBraces - closeBraces; i++) s += '}';
 
-    // Close the array if needed
-    if (!s.trimEnd().endsWith(']')) s += ']';
+    const openBrackets = (s.match(/\[/g) || []).length;
+    const closeBrackets = (s.match(/\]/g) || []).length;
+    for (let i = 0; i < openBrackets - closeBrackets; i++) s += ']';
 
     return s;
   }
