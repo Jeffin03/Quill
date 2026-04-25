@@ -68,6 +68,11 @@ window.QuillApp = {
       this.saveSettings();
     });
 
+    // Home connection status pill click
+    safeBind('home-connection-status', 'click', () => {
+      this.openSettingsModal();
+    });
+
     // Back to stories
     safeBind('btn-back', 'click', () => {
       this.currentStory = null;
@@ -475,33 +480,55 @@ window.QuillApp = {
    */
   async checkConnection() {
     const statusEl = document.getElementById('connection-status');
-    if (!statusEl) return;
+    const homeStatusEl = document.getElementById('home-connection-status');
+    const homeStatusText = homeStatusEl?.querySelector('.status-text');
 
     try {
       const config = await QuillAPI.getConfig();
       if (!config.apiUrl) {
-        statusEl.className = 'connection-status';
+        if (statusEl) statusEl.className = 'connection-status';
+        if (homeStatusEl) {
+          homeStatusEl.className = 'connection-status-pill offline';
+          if (homeStatusText) homeStatusText.textContent = 'LLM: Not Configured';
+        }
         return;
       }
 
-      // Ping Ollama (or any OpenAI compatible /v1 endpoint usually has a root or tags)
+      // Ping Ollama (or any OpenAI compatible /v1 endpoint)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
 
-      const resp = await fetch(config.apiUrl.replace(/\/v1\/?$/, '') + '/api/tags', {
-        method: 'GET',
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
+      try {
+        const resp = await fetch(config.apiUrl.replace(/\/v1\/?$/, '') + '/api/tags', {
+          method: 'GET',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
 
-      if (resp.ok) {
-        statusEl.className = 'connection-status online';
-      } else {
-        statusEl.className = 'connection-status offline';
+        if (resp.ok) {
+          if (statusEl) statusEl.className = 'connection-status online';
+          if (homeStatusEl) {
+            homeStatusEl.className = 'connection-status-pill online';
+            if (homeStatusText) homeStatusText.textContent = 'LLM: Online';
+          }
+        } else {
+          throw new Error('Not OK');
+        }
+      } catch (e) {
+        clearTimeout(timeoutId);
+        if (statusEl) statusEl.className = 'connection-status offline';
+        if (homeStatusEl) {
+          homeStatusEl.className = 'connection-status-pill offline';
+          if (homeStatusText) homeStatusText.textContent = 'LLM: Offline';
+        }
       }
     } catch (err) {
-      statusEl.className = 'connection-status offline';
+      if (statusEl) statusEl.className = 'connection-status offline';
+      if (homeStatusEl) {
+        homeStatusEl.className = 'connection-status-pill offline';
+        if (homeStatusText) homeStatusText.textContent = 'LLM: Offline';
+      }
     }
   },
 
