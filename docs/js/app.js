@@ -19,6 +19,7 @@ window.QuillApp = {
     QuillQR.init();
     QuillToast.init();
     this.checkUpdates();
+    this.startHeartbeat();
 
     // Bind global UI events
     this.bindEvents();
@@ -430,6 +431,48 @@ window.QuillApp = {
         });
       });
     }
+  },
+  /**
+   * Check if the LLM server is reachable.
+   */
+  async checkConnection() {
+    const statusEl = document.getElementById('connection-status');
+    if (!statusEl) return;
+
+    try {
+      const config = await QuillAPI.getConfig();
+      if (!config.apiUrl) {
+        statusEl.className = 'connection-status';
+        return;
+      }
+
+      // Ping Ollama (or any OpenAI compatible /v1 endpoint usually has a root or tags)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const resp = await fetch(config.apiUrl.replace(/\/v1\/?$/, '') + '/api/tags', {
+        method: 'GET',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (resp.ok) {
+        statusEl.className = 'connection-status online';
+      } else {
+        statusEl.className = 'connection-status offline';
+      }
+    } catch (err) {
+      statusEl.className = 'connection-status offline';
+    }
+  },
+
+  /**
+   * Start periodic connection checks.
+   */
+  startHeartbeat() {
+    this.checkConnection();
+    setInterval(() => this.checkConnection(), 15000);
   },
 };
 
