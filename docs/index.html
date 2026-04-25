@@ -212,6 +212,51 @@
     </div>
   </div>
 
+  <!-- Edit Story Settings Modal -->
+  <div id="modal-story-settings" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Story Settings</h3>
+        <button class="modal-close" data-modal="modal-story-settings">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="edit-story-genre">Genre</label>
+          <select id="edit-story-genre">
+            <option value="romance">Romance</option>
+            <option value="dark romance">Dark Romance</option>
+            <option value="fantasy">Fantasy</option>
+            <option value="thriller">Thriller</option>
+            <option value="angst">Angst</option>
+            <option value="hurt/comfort">Hurt/Comfort</option>
+            <option value="slice of life">Slice of Life</option>
+            <option value="action">Action</option>
+            <option value="horror">Horror</option>
+            <option value="mystery">Mystery</option>
+            <option value="general fiction">General Fiction</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-story-pacing">Pacing</label>
+          <select id="edit-story-pacing">
+            <option value="slow-burn">Slow Burn 🔥</option>
+            <option value="moderate">Moderate ⚡</option>
+            <option value="fast">Fast 🚀</option>
+            <option value="natural">Natural 🌊</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-story-tone">Tone</label>
+          <input type="text" id="edit-story-tone" placeholder="e.g., atmospheric, dramatic, tender..." autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-modal="modal-story-settings">Cancel</button>
+        <button id="btn-save-story-settings" class="btn btn-primary">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Settings Modal -->
   <div id="modal-settings" class="modal-overlay hidden">
     <div class="modal">
@@ -246,6 +291,9 @@
             <label for="input-llm-temp">Temperature</label>
             <input type="number" id="input-llm-temp" value="0.85" min="0" max="2" step="0.05">
           </div>
+        </div>
+        <div class="alert alert-warning" style="margin-top: var(--space-md);">
+          ⚠️ <strong>Local Storage Only</strong>: Your stories are stored only in this browser's cache. Clearing browser data will delete all your work. Export backups regularly!
         </div>
       </div>
       <div class="modal-footer">
@@ -313,6 +361,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Toast Notification System -->
+  <div id="toast-container" class="toast-container"></div>
 
   <!-- Scripts (order matters: db → llm → cardEngine → api → rest) -->
   <script src="./js/utils.js"></script>

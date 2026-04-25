@@ -17,6 +17,8 @@ window.QuillApp = {
     QuillCards.init();
     QuillTree.init();
     QuillQR.init();
+    QuillToast.init();
+    this.checkUpdates();
 
     // Bind global UI events
     this.bindEvents();
@@ -46,7 +48,12 @@ window.QuillApp = {
 
     // Story settings button (in workspace)
     document.getElementById('btn-story-settings').addEventListener('click', () => {
-      this.openSettingsModal();
+      this.openStorySettingsModal();
+    });
+
+    // Save story settings
+    document.getElementById('btn-save-story-settings').addEventListener('click', () => {
+      this.saveStorySettings();
     });
 
     // Save settings
@@ -375,40 +382,94 @@ window.QuillApp = {
   },
 
   /**
-   * Generate cards automatically from a premise.
+   * Open story-specific settings.
    */
-  async generateMagicCards() {
-    const storyId = this.currentStory?.id;
-    if (!storyId) return;
+  openStorySettingsModal() {
+    if (!this.currentStory) return;
+    document.getElementById('edit-story-genre').value = this.currentStory.settings?.genre || 'general fiction';
+    document.getElementById('edit-story-pacing').value = this.currentStory.settings?.pacing || 'natural';
+    document.getElementById('edit-story-tone').value = this.currentStory.settings?.tone || 'atmospheric';
+    this.openModal('modal-story-settings');
+  },
 
-    const premiseEl = document.getElementById('input-magic-premise');
-    const premise = premiseEl.value.trim();
-    if (!premise) {
-      alert('Please paste a premise or prologue first.');
-      return;
-    }
-
-    const btn = document.getElementById('btn-generate-magic');
-    btn.disabled = true;
-    btn.textContent = 'Analyzing and Generating... (This may take a minute)';
+  /**
+   * Save story-specific settings.
+   */
+  async saveStorySettings() {
+    if (!this.currentStory) return;
+    const settings = {
+      genre: document.getElementById('edit-story-genre').value,
+      pacing: document.getElementById('edit-story-pacing').value,
+      tone: document.getElementById('edit-story-tone').value.trim() || 'atmospheric'
+    };
 
     try {
-      const newCards = await QuillAPI.generateCardsFromPremise(storyId, premise);
+      await QuillAPI.updateStory(this.currentStory.id, { settings });
+      this.currentStory.settings = settings;
       
-      // Update local state
-      this.currentStory.cards = newCards;
-      QuillCards.render(newCards);
+      // Update UI
+      document.getElementById('story-genre').textContent = settings.genre;
+      document.getElementById('story-pacing').textContent = settings.pacing;
       
-      this.closeModal('modal-magic-cards');
-      premiseEl.value = ''; // clear for next time
+      this.closeModal('modal-story-settings');
+      QuillToast.show('Story settings updated!');
     } catch (err) {
-      console.error('Failed to generate magic cards:', err);
-      alert('Failed to generate cards. The AI might have timed out.');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Generate Cards';
+      console.error('Failed to save story settings:', err);
+      QuillToast.show('Failed to save settings', 'error');
     }
   },
+
+  /**
+   * Check for PWA updates.
+   */
+  checkUpdates() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        QuillToast.show('New version available! Refresh to update.', 'info', 0, () => {
+          window.location.reload();
+        });
+      });
+    }
+  },
+};
+
+/**
+ * Simple Toast Notification System
+ */
+window.QuillToast = {
+  init() {
+    this.container = document.getElementById('toast-container');
+  },
+  show(message, type = 'info', duration = 4000, onClick = null) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+      <div class="toast-content">${message}</div>
+      <button class="toast-close">×</button>
+    `;
+    
+    if (onClick) {
+      toast.style.cursor = 'pointer';
+      toast.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('toast-close')) onClick();
+      });
+    }
+
+    toast.querySelector('.toast-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.remove(toast);
+    });
+
+    this.container.appendChild(toast);
+    if (duration > 0) {
+      setTimeout(() => this.remove(toast), duration);
+    }
+  },
+  remove(toast) {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(20px)';
+    setTimeout(() => toast.remove(), 300);
+  }
 };
 
 // ── Boot ────────────────────────────────────
