@@ -189,21 +189,25 @@ window.QuillApp = {
 
       // Update header
       document.getElementById('story-title').textContent = story.title;
-      document.getElementById('story-pacing').textContent = story.settings?.pacing || 'natural';
-      
-      const genreContainer = document.getElementById('story-genre').parentElement;
-      genreContainer.innerHTML = ''; // Clear old badges
-      
-      const pacingBadge = document.getElementById('story-pacing');
-      const genres = Array.isArray(story.settings?.genre) ? story.settings.genre : [story.settings?.genre || 'fiction'];
-      
-      genres.forEach(g => {
-        const badge = document.createElement('span');
-        badge.className = 'meta-badge';
-        badge.textContent = g;
-        genreContainer.appendChild(badge);
-      });
-      genreContainer.appendChild(pacingBadge);
+      const genreContainer = document.getElementById('story-meta');
+      if (genreContainer) {
+        genreContainer.innerHTML = ''; // Clear old badges
+        
+        const genres = Array.isArray(story.settings?.genre) ? story.settings.genre : [story.settings?.genre || 'fiction'];
+        genres.forEach(g => {
+          const badge = document.createElement('span');
+          badge.className = 'meta-badge';
+          badge.textContent = g;
+          genreContainer.appendChild(badge);
+        });
+
+        // Re-add pacing badge
+        const pacingBadge = document.createElement('span');
+        pacingBadge.id = 'story-pacing';
+        pacingBadge.className = 'meta-badge';
+        pacingBadge.textContent = story.settings?.pacing || 'natural';
+        genreContainer.appendChild(pacingBadge);
+      }
 
       // Render all panels
       QuillChat.render(story);
@@ -462,23 +466,25 @@ window.QuillApp = {
       this.currentStory.settings = settings;
       
       // Update UI Header
-      const genreContainer = document.getElementById('story-genre').parentElement;
-      genreContainer.innerHTML = '';
-      
-      // Re-add pacing badge
-      const pacingBadge = document.createElement('span');
-      pacingBadge.id = 'story-pacing';
-      pacingBadge.className = 'meta-badge';
-      pacingBadge.textContent = settings.pacing;
-      
-      // Add genre badges
-      settings.genre.forEach(g => {
-        const badge = document.createElement('span');
-        badge.className = 'meta-badge';
-        badge.textContent = g;
-        genreContainer.appendChild(badge);
-      });
-      genreContainer.appendChild(pacingBadge);
+      const genreContainer = document.getElementById('story-meta');
+      if (genreContainer) {
+        genreContainer.innerHTML = '';
+        
+        // Add genre badges
+        settings.genre.forEach(g => {
+          const badge = document.createElement('span');
+          badge.className = 'meta-badge';
+          badge.textContent = g;
+          genreContainer.appendChild(badge);
+        });
+
+        // Re-add pacing badge
+        const pacingBadge = document.createElement('span');
+        pacingBadge.id = 'story-pacing';
+        pacingBadge.className = 'meta-badge';
+        pacingBadge.textContent = settings.pacing;
+        genreContainer.appendChild(pacingBadge);
+      }
       
       this.closeModal('modal-story-settings');
       QuillToast.show('Story settings updated!');
