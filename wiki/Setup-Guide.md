@@ -34,14 +34,21 @@ If you can't run the script, manually set your Ollama origins and start a tunnel
 - Run `cloudflared tunnel --url http://localhost:11434`
 - Copy the `trycloudflare.com/v1` URL into Quill settings.
 
-### Cloud LLM Providers
-You can also use fast cloud providers. Just enter the URL and your API Key in Quill settings:
+### Cloud LLM Providers (Gemini, Claude, GPT-4)
+
+Quill works with any OpenAI-compatible API. To use models like **Google Gemini**, **Anthropic Claude**, or **GPT-4**, the easiest way is via **OpenRouter**, which acts as a bridge.
+
+1.  **Get an API Key**: Sign up at [OpenRouter.ai](https://openrouter.ai/).
+2.  **Configure Quill**:
+    -   **API URL**: `https://openrouter.ai/api/v1`
+    -   **API Key**: Your OpenRouter key.
+    -   **Model**: e.g., `google/gemini-pro-1.5-exp` or `anthropic/claude-3.5-sonnet`.
 
 | Provider | API URL | Model Example |
 |---|---|---|
-| **OpenRouter** | `https://openrouter.ai/api/v1` | `meta-llama/llama-3-8b-instruct:free` |
+| **OpenRouter** | `https://openrouter.ai/api/v1` | `google/gemini-2.0-flash-001` |
 | **Groq** | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
-| **Together** | `https://api.together.xyz/v1` | `meta-llama/Llama-3-70b-chat-hf` |
+| **Mistral** | `https://api.mistral.ai/v1` | `mistral-large-latest` |
 
 ## 3. Data & Privacy
 

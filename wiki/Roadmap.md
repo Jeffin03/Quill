@@ -22,6 +22,7 @@ Making the core experience robust.
 - [x] **Tunneling Stack:** `start-llm.sh` for local LLM exposure.
 - [x] **QR Setup:** Camera-based API configuration for mobile.
 - [x] **Offline Mode:** Asset caching via Service Worker.
+- [x] **Stability & Perf:** Sliding window memory, anti-sleep, and heartbeats.
 
 ## Phase 4 — Branching & Multiverse (Current Target) 🌿
 > Fork the story at any point. Explore "what if" scenarios.

@@ -75,3 +75,16 @@ Since browsers have strict security (CORS), connecting to a local LLM (like Olla
 2. **Tunneling**: A tool like `cloudflared` is used to provide a secure HTTPS endpoint for the browser to talk to.
 
 Quill provides `start-llm.sh` to automate this entire process, including a QR code to quickly sync your mobile phone to your computer's GPU.
+
+## Memory Management (Sliding Context)
+
+To maintain performance on low-end hardware (like i3 CPUs):
+- **Sliding Window**: Only the last 20 messages of the conversation history are sent to the LLM.
+- **Persistent Memory**: The **Context Cards** act as the permanent memory, ensuring the AI never "forgets" character traits or world lore even when history is truncated.
+
+## Connection Stability
+
+For mobile-to-PC writing sessions:
+- **Anti-Sleep Shield**: The `start-llm.sh` script uses `systemd-inhibit` to prevent the host computer from sleeping while the tunnel is active.
+- **Heartbeat Monitor**: The PWA polls the LLM endpoint every 15 seconds, providing a visual "pulse" indicator (green/red) to the user.
+- **Rewind/Cleanup**: Users can manually delete failed messages or "Rewind" the timeline to a specific point to recover from errors.
