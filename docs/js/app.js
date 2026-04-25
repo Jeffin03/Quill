@@ -329,6 +329,14 @@ window.QuillApp = {
       document.getElementById('input-llm-key').value = '';
       document.getElementById('input-llm-tokens').value = config.maxTokens || 2048;
       document.getElementById('input-llm-temp').value = config.temperature || 0.85;
+
+      // Populate recent models list
+      const datalist = document.getElementById('list-recent-models');
+      if (datalist && config.recentModels) {
+        datalist.innerHTML = config.recentModels
+          .map(m => `<option value="${m}">`)
+          .join('');
+      }
     } catch (err) {
       console.error('Failed to load config:', err);
     }
@@ -350,11 +358,18 @@ window.QuillApp = {
     if (apiKey) data.apiKey = apiKey;
 
     try {
+      const config = await QuillAPI.getConfig();
+      const recentModels = config.recentModels || [];
+      if (data.model && !recentModels.includes(data.model)) {
+        recentModels.unshift(data.model);
+        data.recentModels = recentModels.slice(0, 10); // Keep last 10
+      }
+
       await QuillAPI.updateConfig(data);
       this.closeModal('modal-settings');
     } catch (err) {
       console.error('Failed to save settings:', err);
-      alert('Failed to save settings.');
+      QuillToast.show('Failed to save settings', 'error');
     }
   },
 

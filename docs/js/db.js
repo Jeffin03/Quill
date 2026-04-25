@@ -145,6 +145,7 @@ window.QuillDB = (() => {
     model: 'hf.co/mradermacher/Llama-3.2-3B-Instruct-Abliterated-GGUF',
     maxTokens: 2048,
     temperature: 0.85,
+    recentModels: ['hf.co/mradermacher/Llama-3.2-3B-Instruct-Abliterated-GGUF'],
   };
 
   async function getConfig() {

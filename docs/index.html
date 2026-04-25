@@ -286,7 +286,10 @@
         <div id="qr-reader" class="hidden" style="width: 100%; border-radius: var(--radius-md); overflow: hidden; margin-bottom: var(--space-md); border: 1px solid var(--border-accent);"></div>
         <div class="form-group">
           <label for="input-llm-model">Model</label>
-          <input type="text" id="input-llm-model" placeholder="default" autocomplete="off">
+          <input type="text" id="input-llm-model" placeholder="e.g., llama3, mistral" autocomplete="off" list="list-recent-models">
+          <datalist id="list-recent-models">
+            <!-- Populated by JS -->
+          </datalist>
         </div>
         <div class="form-group">
           <label for="input-llm-key">API Key</label>
