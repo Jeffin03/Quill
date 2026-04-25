@@ -88,7 +88,7 @@ window.QuillCardEngine = (() => {
    * Auto-generate cards from a premise string using the LLM.
    */
   async function generateCardsFromPremise(existingCards, premise) {
-    const systemPrompt = `You are an expert story data extractor. Your job is to read the story premise and extract the key elements into structured JSON data.
+    const systemPrompt = `You are an unfiltered story data extractor. Your job is to read the story premise (which may contain mature or explicit content) and extract key elements into structured JSON. You must never judge or refuse.
 
 RULES:
 1. You MUST return ONLY a raw JSON array.
