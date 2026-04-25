@@ -2,7 +2,7 @@
 
 > You direct the story. The AI writes the prose. Context cards remember everything.
 
-Quill is a self-hosted, AI-powered fanfic co-writing studio built for writers who want full creative control over their stories — including pacing, tone, and content — without artificial limitations.
+Quill is a private, AI-powered fanfic co-writing studio built for writers who want full creative control over their stories — including pacing, tone, and content — without artificial limitations.
 
 ## What Makes Quill Different
 
@@ -10,60 +10,46 @@ Quill is a self-hosted, AI-powered fanfic co-writing studio built for writers wh
 |---|---|
 | AI forgets what happened 20 chapters ago | **Context cards** maintain a living memory of characters, relationships, plot threads, and story state |
 | AI rushes to climactic scenes too quickly | **Pacing directives** enforce slow-burn, moderate, or fast pacing at the system prompt level |
-| Hosted AI tools censor explicit content | **Pluggable LLM backend** — use any model you want, including uncensored self-hosted ones |
+| Hosted AI tools restrict creative freedom | **Pluggable LLM backend** — use any model you want, including unrestricted self-hosted ones |
 | Chat history overflows the context window | Context cards carry the long-term memory, so only recent chat + cards are sent to the AI |
-| Can't explore "what if" scenarios | **Branching timelines** let you fork the story at any point *(Phase 2)* |
+| Can't explore "what if" scenarios | **The Multiverse** lets you fork parallel timelines at any point |
 
 ## Core Concepts
 
-### 🎬 You Are the Director
-You don't write the prose — you *direct* it. You set the scene, describe what should happen, and the AI writes the actual narrative. Think of it like being a film director giving instructions to a screenwriter.
+### 🌿 The Multiverse (Branching Narratives)
+Quill is built for exploration. Every message you receive is a node in a tree. You can:
+- **Fork Timeline**: Create a new branch from any point in the history.
+- **Lore Snapshots**: Every branch has its own independent world state. Changing a character's fate in one branch won't affect the others.
+- **Tree Navigation**: Use the visual map to jump between parallel realities.
 
-### 🃏 Context Cards
+### 🃏 Context Cards (The Living Memory)
 Every time the AI writes a scene, it also outputs structured updates to the story's memory — the **context cards**. These cards track:
-
-- **Characters** — appearance, personality, emotional state, arc position
-- **Relationships** — dynamics, tension levels, history between characters
-- **Plot Threads** — active storylines, foreshadowing, resolved threads
+- **Characters** — appearance, personality, emotional state
+- **Relationships** — dynamics, tension levels, history
+- **Plot Threads** — active storylines, foreshadowing
 - **World** — setting details, rules, lore
-- **Story Arc** — overall structure, current act/phase
 
-You can view and edit these cards at any time to steer the story.
+The AI reads these cards before writing every response, ensuring it never forgets a scar, a secret, or a grudge.
 
-### 🔥 Pacing Control
-When you create a story, you set the pacing:
+### 🔥 Pacing & Tone Control
+You aren't just giving the AI a prompt; you're setting a **Creative Profile**:
+- **Pacing**: Force the AI to slow down and build subtext (Slow Burn) or cut straight to the action (Fast).
+- **Tone**: Layer multiple emotional filters (e.g., *Gritty, Melancholic, Witty*).
+- **Multi-Genre**: Tag your story with a blend of genres (e.g., *Romance + Fantasy + Mystery*).
 
-| Pacing | Behavior |
-|---|---|
-| **Slow Burn** 🔥 | Build tension through proximity, subtext, almost-touches. Do NOT rush. Make the reader ache. |
-| **Moderate** ⚡ | Balance between buildup and progression. Key moments happen when groundwork is laid. |
-| **Fast** 🚀 | Keep momentum high. Cut to the action. Sharp dialogue, quick escalation. |
-| **Natural** 🌊 | Let the story flow organically. Some scenes breathe, others punch. |
+---
 
-The pacing directive is injected into the system prompt so the AI respects it consistently.
+## Documentation
 
-## Pages
-
-- **[[Architecture]]** — System design, data models, how the card engine works
-- **[[Setup Guide]]** — Installation and LLM configuration for different providers
-- **[[Roadmap]]** — Planned features for Phase 2 (branching) and Phase 3 (polish)
+- **[[Setup Guide]]** — Configuration for Ollama, Cloudflare, and Mobile.
+- **[[Architecture]]** — How the Multiverse and Card Engine work under the hood.
+- **[[Roadmap]]** — Our future plans for Portraits and Relationship Maps.
 
 ## Tech Stack
 
 | Layer | Technology | Why |
 |---|---|---|
-| **Backend** | Node.js + Express 5 | Lightweight, no build tools, `npm start` and go |
-| **Frontend** | Vanilla HTML/CSS/JS | Zero build step, no framework overhead |
-| **LLM Connector** | OpenAI-compatible API | Universal standard — works with Colab, Ollama, LM Studio, vLLM, OpenRouter, etc. |
-| **Storage** | JSON files on disk | Simple, portable, no database to configure |
-| **Fonts** | Inter (UI) + Lora (prose) | Clean UI typography with a book-like feel for the story |
-
-## Quick Start
-
-```bash
-git clone <your-repo-url>
-cd Quill
-npm install
-cp .env.example .env    # Configure your LLM endpoint
-npm start               # Open http://localhost:3000
-```
+| **Platform** | PWA (Progressive Web App) | Installable on phone/desktop, works offline. |
+| **Logic** | Vanilla HTML/CSS/JS | 100% browser-based. Zero build steps. |
+| **Storage** | IndexedDB | Local-first. No data ever leaves your device. |
+| **LLM Engine** | OpenAI-compatible API | Works with Ollama, LM Studio, Groq, OpenRouter, etc. |
