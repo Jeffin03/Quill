@@ -32,92 +32,98 @@ window.QuillApp = {
    * Bind all global event handlers.
    */
   bindEvents() {
+    const safeBind = (id, event, fn) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener(event, fn);
+      else console.warn(`[SafeBind] Element not found: ${id}`);
+    };
+
     // New Story button
-    document.getElementById('btn-new-story').addEventListener('click', () => {
+    safeBind('btn-new-story', 'click', () => {
       this.openModal('modal-new-story');
     });
 
     // Create Story (in modal)
-    document.getElementById('btn-create-story').addEventListener('click', () => {
+    safeBind('btn-create-story', 'click', () => {
       this.createStory();
     });
 
     // Settings button
-    document.getElementById('btn-settings').addEventListener('click', () => {
+    safeBind('btn-settings', 'click', () => {
       this.openSettingsModal();
     });
 
     // Story settings button (in workspace)
-    document.getElementById('btn-story-settings').addEventListener('click', () => {
+    safeBind('btn-story-settings', 'click', () => {
       this.openStorySettingsModal();
     });
 
     // Save story settings
-    document.getElementById('btn-save-story-settings').addEventListener('click', () => {
+    safeBind('btn-save-story-settings', 'click', () => {
       this.saveStorySettings();
     });
 
     // Save settings
-    document.getElementById('btn-save-settings').addEventListener('click', () => {
+    safeBind('btn-save-settings', 'click', () => {
       this.saveSettings();
     });
 
     // Back to stories
-    document.getElementById('btn-back').addEventListener('click', () => {
+    safeBind('btn-back', 'click', () => {
       this.currentStory = null;
       this.showView('story-list-view');
       QuillStoryList.loadStories();
     });
 
     // Import story from JSON file
-    document.getElementById('btn-import-story').addEventListener('click', async () => {
+    safeBind('btn-import-story', 'click', async () => {
       try {
         const story = await QuillDB.importStory();
         QuillStoryList.loadStories();
-        alert(`"${story.title}" imported successfully!`);
+        QuillToast.show(`"${story.title}" imported successfully!`, 'success');
       } catch (err) {
         if (err.message !== 'No file selected') {
-          alert('Failed to import story: ' + err.message);
+          QuillToast.show('Failed to import: ' + err.message, 'error');
         }
       }
     });
 
     // Toggle tree panel
-    document.getElementById('btn-toggle-tree').addEventListener('click', () => {
+    safeBind('btn-toggle-tree', 'click', () => {
       this.toggleTreePanel();
     });
 
     // Toggle cards panel
-    document.getElementById('btn-toggle-cards').addEventListener('click', () => {
+    safeBind('btn-toggle-cards', 'click', () => {
       this.toggleCardsPanel();
     });
 
     // Add card button
-    document.getElementById('btn-add-card').addEventListener('click', () => {
+    safeBind('btn-add-card', 'click', () => {
       this.openAddCardModal();
     });
 
     // Save card (add card modal)
-    document.getElementById('btn-save-card').addEventListener('click', () => {
+    safeBind('btn-save-card', 'click', () => {
       this.saveNewCard();
     });
 
     // Magic cards button
-    document.getElementById('btn-magic-cards').addEventListener('click', () => {
+    safeBind('btn-magic-cards', 'click', () => {
       this.openModal('modal-magic-cards');
     });
 
     // Generate magic cards
-    document.getElementById('btn-generate-magic').addEventListener('click', () => {
+    safeBind('btn-generate-magic', 'click', () => {
       this.generateMagicCards();
     });
 
     // Add field button (in card modal)
-    document.getElementById('btn-add-field').addEventListener('click', () => {
+    safeBind('btn-add-field', 'click', () => {
       QuillCards.addFieldRow();
     });
 
-    // Modal close buttons
+    // Modal close buttons (querySelectorAll is inherently safe)
     document.querySelectorAll('.modal-close, .modal-footer .btn-ghost[data-modal]').forEach(btn => {
       btn.addEventListener('click', () => {
         const modalId = btn.dataset.modal;
@@ -133,38 +139,31 @@ window.QuillApp = {
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
           overlay.classList.add('hidden');
-          QuillQR.stopScanner(); // Stop if settings modal was closed via overlay
+          QuillQR.stopScanner(); 
         }
       });
     });
 
-    // Close mobile side panels on overlay click
-    const mobileOverlay = document.getElementById('mobile-overlay');
-    if (mobileOverlay) {
-      mobileOverlay.addEventListener('click', () => {
-        if (this.treePanelVisible) this.toggleTreePanel();
-        if (this.cardsPanelVisible) this.toggleCardsPanel();
+    // Story title editing
+    const titleEl = document.getElementById('story-title');
+    if (titleEl) {
+      titleEl.addEventListener('blur', () => {
+        if (this.currentStory) {
+          const newTitle = titleEl.textContent.trim();
+          if (newTitle && newTitle !== this.currentStory.title) {
+            this.currentStory.title = newTitle;
+            QuillAPI.updateStory(this.currentStory.id, { title: newTitle });
+          }
+        }
+      });
+
+      titleEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          titleEl.blur();
+        }
       });
     }
-
-    // Story title editing (debounced save)
-    const titleEl = document.getElementById('story-title');
-    titleEl.addEventListener('blur', () => {
-      if (this.currentStory) {
-        const newTitle = titleEl.textContent.trim();
-        if (newTitle && newTitle !== this.currentStory.title) {
-          this.currentStory.title = newTitle;
-          QuillAPI.updateStory(this.currentStory.id, { title: newTitle });
-        }
-      }
-    });
-
-    titleEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        titleEl.blur();
-      }
-    });
   },
 
   /**

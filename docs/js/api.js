@@ -22,7 +22,7 @@ window.QuillAPI = {
 
   async createStory(data) {
     const story = {
-      id: crypto.randomUUID(),
+      id: QuillUtils.uuid(),
       title: data.title || 'Untitled Story',
       settings: {
         genre: data.genre || 'general fiction',
@@ -92,7 +92,7 @@ window.QuillAPI = {
 
         // Save user message
         const userMsg = {
-          id: crypto.randomUUID(),
+          id: QuillUtils.uuid(),
           role: 'user',
           content: message,
           parentId: parentId,
@@ -133,9 +133,8 @@ window.QuillAPI = {
             const cardUpdates = QuillCardEngine.parseCardUpdates(fullResponse);
             const updatedCards = QuillCardEngine.applyCardUpdates(userMsg.cardSnapshot || [], cardUpdates);
 
-            // Save assistant message
             const assistantMsg = {
-              id: crypto.randomUUID(),
+              id: QuillUtils.uuid(),
               role: 'assistant',
               content: prose,
               parentId: userMsg.id,
@@ -195,7 +194,7 @@ window.QuillAPI = {
     const story = await QuillDB.getStory(storyId);
     if (!story) throw new Error('Story not found');
     const card = {
-      id: crypto.randomUUID(),
+      id: QuillUtils.uuid(),
       type: data.type || 'world',
       title: data.title || 'Untitled Card',
       fields: data.fields || {},
