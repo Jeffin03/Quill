@@ -204,7 +204,10 @@ window.QuillChat = {
     el.className = 'message message-assistant message-streaming';
     el.innerHTML = `
       <span class="message-label">Quill</span>
-      <div class="message-bubble"></div>
+      <div class="message-bubble-wrapper">
+        <div class="message-bubble"></div>
+        <div class="message-actions"></div>
+      </div>
     `;
 
     this.messagesContainer.appendChild(el);
@@ -287,6 +290,10 @@ window.QuillChat = {
         // Update tree
         QuillTree.addNode(message, data.prose);
 
+        // Add actions (Delete/Edit)
+        const assistantMsgId = data.messageId || QuillUtils.uuid();
+        this.addActionsToStreamMessage(streamEl, { id: assistantMsgId, role: 'assistant', content: data.prose || '', timestamp: new Date().toISOString() });
+
         this.resetInput();
         QuillCards.setSyncing(false);
         this.cardsStarted = false;
@@ -295,10 +302,35 @@ window.QuillChat = {
       onError: (error) => {
         streamEl.classList.remove('message-streaming');
         bubble.innerHTML = `<p style="color: var(--color-relationship);">⚠ Error: ${QuillUtils.escapeHtml(error)}</p>`;
+        
+        // Add actions even on error so user can delete it
+        this.addActionsToStreamMessage(streamEl, { id: QuillUtils.uuid(), role: 'assistant', content: '', timestamp: new Date().toISOString() });
+        
         this.resetInput();
         QuillCards.setSyncing(false);
         this.cardsStarted = false;
       },
+    });
+  },
+
+  /**
+   * Add Edit/Delete actions to a message that was just streamed or failed.
+   */
+  addActionsToStreamMessage(el, msg) {
+    const actionsContainer = el.querySelector('.message-actions');
+    if (!actionsContainer) return;
+
+    actionsContainer.innerHTML = `
+      <button class="btn-message-action btn-edit-message" title="Edit">✏️</button>
+      <button class="btn-message-action btn-delete-message" title="Delete/Rewind">🗑️</button>
+    `;
+
+    actionsContainer.querySelector('.btn-edit-message').addEventListener('click', () => {
+      this.openEditMode(msg, el, el.querySelector('.message-bubble-wrapper'), el.querySelector('.message-bubble'));
+    });
+
+    actionsContainer.querySelector('.btn-delete-message').addEventListener('click', () => {
+      this.openDeleteMode(msg, el);
     });
   },
 
