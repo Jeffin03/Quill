@@ -17,6 +17,19 @@ A 100% serverless, client-side fanfic co-writing studio powered by AI. You direc
     - **Any Provider**: Connects to any local or remote model (Ollama, LM Studio, Groq, etc.).
 - **🎭 Multi-Genre Control** — Tag stories with multiple genres and custom tones (e.g., *Romance + Fantasy*, Tone: *Dark, Melancholic*).
 
+---
+
+## 🧭 The Quill Philosophy
+
+Quill is designed as a **Private Creative Sandbox**. We recognize the ongoing ethical debate regarding AI and the creative arts. Our mission is to provide a safe, unrestricted space for personal storytelling, not to displace human authors.
+
+- **Personal Indulgence, Not Replacement**: Quill is for your own "Internal Multiverse." It is a tool for personal entertainment and brainstorming, much like a private game. It is not intended for the mass-production of content to compete with human-authored works in the creative market.
+- **Collaborative Muse**: We view the AI as a co-writing partner that helps you explore your own ideas faster, acting as a sounding board rather than a replacement for your creative voice.
+- **Privacy First**: Because your work stays on your device, Quill is a judgment-free space to explore your imagination without your ideas being harvested for training or cloud storage.
+- **Respect the Community**: We believe in the irreplaceable value of human-authored fiction. We encourage users to use Quill for their own fulfillment and to be transparent and respectful when interacting with the broader creative community.
+
+---
+
 ## 🛠 Quick Start (Local Development)
 
 ```bash
