@@ -2,30 +2,82 @@
 
 Quill is a **Local-First, Serverless PWA**. There is no traditional backend; the entire application logic and database live inside your browser.
 
-## 1. Storage Layer (IndexedDB)
-Quill uses the browser's **IndexedDB** via `db.js`.
-- **Stories Store**: Stores story metadata, branches, and the message tree.
-- **Settings Store**: Stores LLM configuration and model history.
-- **Privacy**: No story data is ever sent to a server (except to your own LLM endpoint for generation).
+## 1. System Overview
 
-## 2. The Multiverse Engine (Branching Narratives)
-Unlike a linear chat app, Quill uses a **Tree Structure** for stories:
-- **Nodes**: Every message is a node with a `parentId`.
-- **Branches**: Forking a timeline creates a new child node from any point in the history.
-- **Lineage**: The "active timeline" is calculated by traversing back from the current `activeBranchId` to the root.
-- **Snapshots**: Every message stores a `cardSnapshot`. When you switch branches, the world state (cards) is instantly restored to that specific point in time.
 
-## 3. The Card Engine (Living Memory)
-The Card Engine (`cardEngine.js`) is responsible for story consistency:
-- **Extraction**: It uses a specialized system prompt to force the AI to output structured JSON updates (create/update/delete) after every scene.
-- **Deep Repair**: A robust parsing layer that can automatically fix common LLM formatting errors (single quotes, trailing commas, truncated JSON) to ensure the database never crashes.
-- **Lore Integration**: Cards are injected back into the LLM's system prompt as a "Source of Truth," preventing the AI from forgetting details in long-running stories.
+```text
+┌──────────────────────────────────────────────────────────┐
+│                     Browser (UI)                         │
+│  ┌────────────┐  ┌────────────────┐  ┌────────────────┐  │
+│  │ Story Tree │  │   Chat Panel   │  │ Context Cards  │  │
+│  │  (left)    │  │   (center)     │  │   (right)      │  │
+│  └────────────┘  └────────────────┘  └────────────────┘  │
+└───────────┬──────────────────────────────────────────────┘
+            │
+┌───────────▼──────────────────────────────────────────────┐
+│                  App Logic Layer                         │
+│  ┌──────────────┐ ┌─────────────┐ ┌───────────────────┐  │
+│  │ LLM Engine   │ │ Card Engine │ │  IndexedDB (DB)   │  │
+│  │ (js/api.js)  │ │(js/cardEng.js)│ │  (js/db.js)     │  │
+│  └──────────────┘ └─────────────┘ └───────────────────┘  │
+└───────────┬──────────────────────────────────────────────┘
+            │ HTTP (CORS via Tunnel or direct)
+  ┌─────────▼──────────┐
+  │    LLM Backend     │
+  │ (Ollama / Groq /   │
+  │  any OpenAI API)   │
+  └────────────────────┘
+```
 
-## 4. LLM Connectivity
-- **Universal Provider**: `api.js` implements an OpenAI-compatible interface.
-- **Heartbeat**: A background process (`app.js`) checks the API connection every 15 seconds to update the UI status.
-- **Tunneling**: For local LLMs, we use `cloudflared` to provide a secure HTTPS tunnel so the web app can talk to your local GPU.
+---
 
-## 5. UI Architecture
-- **Vanilla Components**: We use a custom, zero-dependency component system (e.g., `chat.js`, `cards.js`, `tree.js`).
-- **Reactive State**: `app.js` acts as the central controller, managing the current story state and orchestrating panel updates.
+## 2. Project Structure
+
+```text
+Quill/
+├── docs/                 # The PWA (Public Web App)
+│   ├── css/              # Stylesheets (Modern Vanilla CSS)
+│   ├── js/               # Application Logic
+│   │   ├── app.js        # Main Controller & UI Orchestrator
+│   │   ├── api.js        # LLM Connector (OpenAI-Compatible)
+│   │   ├── db.js         # IndexedDB Storage Layer
+│   │   ├── chat.js       # Chat Rendering & Message Logic
+│   │   ├── cards.js      # Context Card Rendering
+│   │   ├── tree.js       # Multiverse Tree Visualization
+│   │   ├── cardEngine.js # AI Parsing & JSON Repair
+│   │   ├── utils.js      # UUIDs, Formatting, & Helpers
+│   │   └── storyList.js  # Home Screen Story Management
+│   └── index.html        # Main Entry Point & Modals
+├── wiki/                 # Project Documentation
+├── start-llm.sh          # Local LLM Tunnel Script (Bash)
+└── README.md             # Project Overview
+```
+
+---
+
+## 3. Data Layers
+
+### 💾 Storage (IndexedDB)
+Quill uses **IndexedDB** for persistence, making it "Local-First."
+- **Persistence**: Your stories survive browser refreshes and device reboots.
+- **Privacy**: No story data is ever sent to a central server.
+- **Portability**: Users can export their entire database as a JSON file.
+
+### 🌿 The Multiverse (Branching)
+The story is not a list; it is a **Directed Acyclic Graph (DAG)**.
+- **Nodes**: Each message contains its content, a `parentId`, and a `cardSnapshot`.
+- **Active Path**: The UI calculates the timeline by traversing from the current `activeBranchId` back to the root.
+- **Independent State**: Switching branches instantly restores the `cardSnapshot` to the sidebar, allowing "What If" scenarios to have their own consistent history.
+
+### 🃏 The Card Engine (Knowledge)
+The `cardEngine.js` acts as the "Brain" of the memory system:
+- **Extraction**: Post-processes AI responses to find `[[[QUILL_CARDS_START]]]` blocks.
+- **Deep Repair**: Uses a heuristic repair system to fix malformed JSON (single quotes, missing braces, trailing commas) common in smaller LLMs.
+- **Injection**: Injects current cards into the System Prompt to maintain long-term character/plot consistency.
+
+---
+
+## 4. Connectivity Layer
+- **Unified API**: All LLM requests are routed through a single OpenAI-compatible interface in `api.js`.
+- **Secure Tunneling**: For local-to-web access, `cloudflared` provides an HTTPS bridge, solving CORS and Mixed Content issues automatically.
+- **Heartbeat**: A 15-second "Heartbeat" monitors the LLM status to provide real-time UI feedback.
