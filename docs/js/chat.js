@@ -40,10 +40,12 @@ window.QuillChat = {
   /**
    * Load and render all messages for the current story.
    */
-  render(story) {
+  async render(story) {
     this.messagesContainer.innerHTML = '';
 
-    if (!story.messages || story.messages.length === 0) {
+    const branchMessages = await QuillAPI.getBranchMessages(story.id);
+
+    if (!branchMessages || branchMessages.length === 0) {
       this.messagesContainer.innerHTML = `
         <div id="chat-welcome" class="chat-welcome">
           <div class="welcome-icon">✒️</div>
@@ -322,11 +324,16 @@ window.QuillChat = {
 
     actionsContainer.innerHTML = `
       <button class="btn-message-action btn-edit-message" title="Edit">✏️</button>
+      <button class="btn-message-action btn-branch-message" title="Branch from here">🌿</button>
       <button class="btn-message-action btn-delete-message" title="Delete/Rewind">🗑️</button>
     `;
 
     actionsContainer.querySelector('.btn-edit-message').addEventListener('click', () => {
       this.openEditMode(msg, el, el.querySelector('.message-bubble-wrapper'), el.querySelector('.message-bubble'));
+    });
+
+    actionsContainer.querySelector('.btn-branch-message').addEventListener('click', () => {
+      this.openBranchMode(msg);
     });
 
     actionsContainer.querySelector('.btn-delete-message').addEventListener('click', () => {
@@ -363,5 +370,35 @@ window.QuillChat = {
         this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
       }
     });
+  /**
+   * Open branch mode (Create a new divergent timeline from a message).
+   */
+  async openBranchMode(msg) {
+    const confirm = window.confirm('Fork this story from here? You will start a new parallel timeline.');
+    if (!confirm) return;
+
+    try {
+      const story = QuillApp.currentStory;
+      story.activeBranchId = msg.id;
+      
+      // Update story cards to the snapshot of this message
+      if (msg.cardSnapshot) {
+        story.cards = msg.cardSnapshot;
+        QuillCards.render(story.cards);
+      }
+
+      await QuillAPI.updateStory(story.id, { activeBranchId: msg.id, cards: story.cards });
+      
+      // Re-render
+      await this.render(story);
+      QuillTree.render(story);
+      
+      QuillToast.show('Timeline forked! Type to begin a new path.', 'success');
+      
+      // Focus input
+      this.input.focus();
+    } catch (err) {
+      console.error('Failed to branch:', err);
+    }
   },
 };

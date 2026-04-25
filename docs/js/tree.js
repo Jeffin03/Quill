@@ -13,10 +13,9 @@ window.QuillTree = {
   },
 
   /**
-   * Render the tree from story messages.
-   * In Phase 1, this is a linear timeline derived from message pairs.
+   * Render the branching story tree.
    */
-  render(story) {
+  async render(story) {
     this.container.innerHTML = '';
     this.nodes = [];
 
@@ -29,124 +28,139 @@ window.QuillTree = {
       return;
     }
 
-    const timeline = document.createElement('div');
-    timeline.className = 'tree-timeline';
+    // Reconstruct the tree structure
+    const msgMap = new Map(story.messages.map(m => [m.id, m]));
+    const childrenMap = new Map();
+    
+    story.messages.forEach(msg => {
+      if (msg.parentId) {
+        if (!childrenMap.has(msg.parentId)) childrenMap.set(msg.parentId, []);
+        childrenMap.get(msg.parentId).push(msg.id);
+      }
+    });
 
-    // Build nodes from message pairs (user direction + AI response)
-    let nodeIndex = 0;
-    for (let i = 0; i < story.messages.length; i++) {
-      const msg = story.messages[i];
-      if (msg.role !== 'user') continue;
+    const treeRoot = document.createElement('div');
+    treeRoot.className = 'tree-multiverse';
+    
+    // Start rendering from the root message
+    const rootId = story.rootMessageId || story.messages[0].id;
+    this.renderNode(rootId, msgMap, childrenMap, treeRoot, story.activeBranchId, 1);
 
-      nodeIndex++;
-      const aiMsg = story.messages[i + 1]; // The response (if exists)
-
-      const preview = aiMsg
-        ? QuillUtils.truncate(aiMsg.content, 60)
-        : 'Awaiting response...';
-
-      const label = QuillUtils.truncate(msg.content, 30);
-      const isActive = i >= story.messages.length - 2;
-
-      const node = this.createNode({
-        index: nodeIndex,
-        label,
-        preview,
-        messageIndex: i,
-        active: isActive,
-      });
-
-      timeline.appendChild(node);
-      this.nodes.push({ index: nodeIndex, messageIndex: i });
-    }
-
-    this.container.appendChild(timeline);
+    this.container.appendChild(treeRoot);
 
     // Scroll to active node
-    const activeNode = timeline.querySelector('.tree-node.active');
+    const activeNode = treeRoot.querySelector('.tree-node.active');
     if (activeNode) {
       activeNode.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   },
 
   /**
-   * Create a tree node element.
+   * Recursively render nodes and their branches.
    */
-  createNode({ index, label, preview, messageIndex, active }) {
+  renderNode(msgId, msgMap, childrenMap, container, activeBranchId, depth) {
+    const msg = msgMap.get(msgId);
+    if (!msg || msg.role !== 'user') return; // We render user directions as the nodes
+
+    const children = childrenMap.get(msgId) || [];
+    const aiRespId = children.find(id => msgMap.get(id)?.role === 'assistant');
+    const aiMsg = aiRespId ? msgMap.get(aiRespId) : null;
+    
+    // Create the node element
+    const preview = aiMsg ? QuillUtils.truncate(aiMsg.content, 60) : '...';
+    const label = QuillUtils.truncate(msg.content, 30);
+    
+    // Is this node on the active path?
+    const isActive = this.isNodeOnPath(msgId, activeBranchId, msgMap);
+
+    const nodeEl = this.createNodeUI({
+      id: msg.id,
+      label,
+      preview,
+      active: isActive,
+      depth
+    });
+    
+    container.appendChild(nodeEl);
+
+    // Render children (branches)
+    const nextMsgIds = aiRespId ? (childrenMap.get(aiRespId) || []) : [];
+    
+    if (nextMsgIds.length > 0) {
+      const branchesContainer = document.createElement('div');
+      branchesContainer.className = 'tree-branches';
+      container.appendChild(branchesContainer);
+
+      nextMsgIds.forEach(nextId => {
+        const branchWrapper = document.createElement('div');
+        branchWrapper.className = 'tree-branch-wrapper';
+        branchesContainer.appendChild(branchWrapper);
+        this.renderNode(nextId, msgMap, childrenMap, branchWrapper, activeBranchId, depth + 1);
+      });
+    }
+  },
+
+  /**
+   * Check if a node is part of the lineage of the active leaf.
+   */
+  isNodeOnPath(nodeId, activeLeafId, msgMap) {
+    let currentId = activeLeafId;
+    while (currentId) {
+      if (currentId === nodeId) return true;
+      const msg = msgMap.get(currentId);
+      currentId = msg?.parentId;
+    }
+    return false;
+  },
+
+  /**
+   * Create the node UI element.
+   */
+  createNodeUI({ id, label, preview, active, depth }) {
     const el = document.createElement('div');
     el.className = `tree-node ${active ? 'active' : ''}`;
-    el.dataset.messageIndex = messageIndex;
-
+    el.style.marginLeft = `${(depth - 1) * 12}px`;
+    
     el.innerHTML = `
       <div class="tree-node-dot"></div>
       <div class="tree-node-content">
-        <div class="tree-node-label">
-          <span class="tree-node-number">${index}.</span>
-          ${QuillUtils.escapeHtml(label)}
-        </div>
+        <div class="tree-node-label">${QuillUtils.escapeHtml(label)}</div>
         <div class="tree-node-preview">${QuillUtils.escapeHtml(preview)}</div>
-      </div>
-      <div class="tree-node-actions">
-        <button class="btn-rewind" title="Rewind to here">⏪</button>
       </div>
     `;
 
-    // Click to scroll to that message in chat
-    el.addEventListener('click', (e) => {
-      if (e.target.closest('.btn-rewind')) return; // Ignore if clicking rewind
-      
-      this.scrollToMessage(messageIndex);
-      // Update active state
-      this.container.querySelectorAll('.tree-node').forEach(n => n.classList.remove('active'));
-      el.classList.add('active');
-    });
-
-    // Rewind handler
-    const rewindBtn = el.querySelector('.btn-rewind');
-    rewindBtn.addEventListener('click', async () => {
-      if (!confirm('Are you sure you want to rewind to this point? Everything after this will be deleted.')) {
-        return;
-      }
-      
-      try {
-        const storyId = QuillApp.currentStory.id;
-        // The index we want to keep is messageIndex + 1 (user message + ai response)
-        const keepIndex = messageIndex + 1;
-        
-        await QuillAPI.rewindTimeline(storyId, keepIndex);
-        
-        // Update local state and re-render
-        QuillApp.currentStory.messages = QuillApp.currentStory.messages.slice(0, keepIndex + 1);
-        QuillChat.render(QuillApp.currentStory);
-        this.render(QuillApp.currentStory);
-        
-      } catch (err) {
-        console.error('Failed to rewind timeline:', err);
-        alert('Failed to rewind: ' + err.message);
-      }
+    el.addEventListener('click', () => {
+      this.switchToBranch(id);
     });
 
     return el;
   },
 
   /**
-   * Add a new node to the tree (called after a new message exchange).
+   * Switch the active branch to a specific node.
    */
-  addNode(userContent, aiContent) {
-    const story = QuillApp.currentStory;
-    if (!story) return;
+  async switchToBranch(messageId) {
+    try {
+      const story = QuillApp.currentStory;
+      story.activeBranchId = messageId;
+      
+      // Update the story cards to the snapshot of this message
+      const msg = story.messages.find(m => m.id === messageId);
+      if (msg && msg.cardSnapshot) {
+        story.cards = msg.cardSnapshot;
+        QuillCards.render(story.cards);
+      }
 
-    // Re-render the whole tree (simple for Phase 1)
-    this.render(story);
-  },
-
-  /**
-   * Scroll the chat to a specific message by index.
-   */
-  scrollToMessage(messageIndex) {
-    const messages = document.querySelectorAll('#chat-messages .message');
-    if (messages[messageIndex]) {
-      messages[messageIndex].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      await QuillAPI.updateStory(story.id, { activeBranchId: messageId, cards: story.cards });
+      
+      // Re-render everything
+      const branchMessages = await QuillAPI.getBranchMessages(story.id, messageId);
+      QuillChat.render({ ...story, messages: branchMessages });
+      this.render(story);
+      
+      QuillToast.show('Switched timeline');
+    } catch (err) {
+      console.error('Failed to switch branch:', err);
     }
   },
 };

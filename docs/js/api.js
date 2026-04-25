@@ -31,6 +31,8 @@ window.QuillAPI = {
       },
       messages: [],
       cards: [],
+      activeBranchId: null, // The ID of the current "leaf" node
+      rootMessageId: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -51,9 +53,31 @@ window.QuillAPI = {
   // ── Chat (Client-Side Streaming) ─────────
 
   /**
+   * Get messages for the active branch (traverses parentId up to root).
+   */
+  async getBranchMessages(storyId, leafId = null) {
+    const story = await QuillDB.getStory(storyId);
+    if (!story || !story.messages || story.messages.length === 0) return [];
+    
+    const targetId = leafId || story.activeBranchId;
+    if (!targetId) return story.messages; // Fallback for old linear stories
+
+    const messages = [];
+    const msgMap = new Map(story.messages.map(m => [m.id, m]));
+    
+    let currentId = targetId;
+    while (currentId) {
+      const msg = msgMap.get(currentId);
+      if (!msg) break;
+      messages.unshift(msg);
+      currentId = msg.parentId;
+    }
+    
+    return messages;
+  },
+
+  /**
    * Stream a chat response from the LLM directly.
-   * The story is read from and saved to IndexedDB.
-   * Returns { abort } to cancel the stream.
    */
   streamChat(storyId, message, { onChunk, onDone, onError }) {
     let abortFn = null;
@@ -63,25 +87,37 @@ window.QuillAPI = {
         const story = await QuillDB.getStory(storyId);
         if (!story) throw new Error('Story not found');
 
+        // Current leaf is the parent for the new message
+        const parentId = story.activeBranchId || (story.messages.length > 0 ? story.messages[story.messages.length-1].id : null);
+
         // Save user message
         const userMsg = {
           id: crypto.randomUUID(),
           role: 'user',
           content: message,
+          parentId: parentId,
           timestamp: new Date().toISOString(),
+          // User message inherits cards from parent
+          cardSnapshot: parentId ? story.messages.find(m => m.id === parentId)?.cardSnapshot : (story.cards || [])
         };
         story.messages.push(userMsg);
+        story.activeBranchId = userMsg.id;
+        if (!story.rootMessageId) story.rootMessageId = userMsg.id;
 
-        // Build system prompt
-        const systemPrompt = buildSystemPrompt(story);
+        // Build system prompt using the snapshot from the parent
+        const systemPrompt = buildSystemPrompt({ 
+          settings: story.settings, 
+          cards: userMsg.cardSnapshot 
+        });
 
-        // Build conversation history (Sliding Window: last 20 messages)
+        // Build conversation history for THIS branch
+        const history = await this.getBranchMessages(storyId, userMsg.id);
         const historyLimit = 20;
-        const history = story.messages.slice(-historyLimit);
+        const recentHistory = history.slice(-historyLimit);
         
         const llmMessages = [
           { role: 'system', content: systemPrompt },
-          ...history.map(m => ({ role: m.role, content: m.content })),
+          ...recentHistory.map(m => ({ role: m.role, content: m.content })),
         ];
 
         let fullContent = '';
@@ -92,20 +128,23 @@ window.QuillAPI = {
             onChunk?.(chunk);
           },
           async (fullResponse) => {
-            // Parse out cards from the response
+            // Parse out cards
             const prose = QuillCardEngine.stripCardBlock(fullResponse);
             const cardUpdates = QuillCardEngine.parseCardUpdates(fullResponse);
-            const updatedCards = QuillCardEngine.applyCardUpdates(story.cards || [], cardUpdates);
+            const updatedCards = QuillCardEngine.applyCardUpdates(userMsg.cardSnapshot || [], cardUpdates);
 
             // Save assistant message
             const assistantMsg = {
               id: crypto.randomUUID(),
               role: 'assistant',
               content: prose,
+              parentId: userMsg.id,
               timestamp: new Date().toISOString(),
+              cardSnapshot: updatedCards // Capture the new reality
             };
             story.messages.push(assistantMsg);
-            story.cards = updatedCards;
+            story.activeBranchId = assistantMsg.id;
+            story.cards = updatedCards; // Keep for global sync
             await QuillDB.saveStory(story);
 
             onDone?.({ prose, cards: updatedCards, messageId: assistantMsg.id });

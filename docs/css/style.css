@@ -906,3 +906,84 @@ body {
   100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
 }
 
+/* ── Multiverse Story Tree ─────────────── */
+
+.tree-multiverse {
+  padding: var(--space-md);
+  padding-bottom: 4rem;
+}
+
+.tree-branches {
+  margin-top: var(--space-xs);
+  border-left: 1px solid rgba(255,255,255,0.1);
+  margin-left: 8px;
+  padding-left: var(--space-md);
+}
+
+.tree-branch-wrapper {
+  position: relative;
+  margin-top: var(--space-sm);
+}
+
+.tree-branch-wrapper::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--space-md) - 1px);
+  top: 18px;
+  width: var(--space-md);
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+}
+
+.tree-node {
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: var(--space-xs);
+  position: relative;
+}
+
+.tree-node:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tree-node.active {
+  background: rgba(var(--color-primary-rgb), 0.1);
+  border-color: rgba(var(--color-primary-rgb), 0.3);
+}
+
+.tree-node-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--color-primary);
+  margin-bottom: 2px;
+}
+
+.tree-node-preview {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-node-dot {
+  position: absolute;
+  left: -20px;
+  top: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-border);
+  border: 2px solid var(--color-bg);
+  z-index: 2;
+}
+
+.tree-node.active .tree-node-dot {
+  background: var(--color-primary);
+  box-shadow: 0 0 8px var(--color-primary);
+}
+

@@ -92,7 +92,36 @@ window.QuillDB = (() => {
       const transaction = database.transaction('stories', 'readonly');
       const store = transaction.objectStore('stories');
       const request = store.get(id);
-      request.onsuccess = () => resolve(request.result || null);
+      request.onsuccess = async () => {
+        const story = request.result;
+        if (!story) return resolve(null);
+
+        // MIGRATION: Handle old linear stories
+        let changed = false;
+        if (!story.messages) story.messages = [];
+        
+        if (story.messages.length > 0 && !story.activeBranchId) {
+          console.log(`[Migration] Migrating linear story: ${story.title}`);
+          story.rootMessageId = story.messages[0].id;
+          
+          for (let i = 0; i < story.messages.length; i++) {
+            const msg = story.messages[i];
+            if (!msg.parentId && i > 0) msg.parentId = story.messages[i-1].id;
+            if (!msg.cardSnapshot) msg.cardSnapshot = story.cards || [];
+          }
+          
+          story.activeBranchId = story.messages[story.messages.length - 1].id;
+          changed = true;
+        }
+
+        if (changed) {
+          // We can't save in a readonly transaction, but we'll return the migrated object
+          // and the next 'saveStory' call (which happens often) will persist it.
+          console.log(`[Migration] Story ${id} migrated in-memory.`);
+        }
+
+        resolve(story);
+      };
       request.onerror = () => reject(request.error);
     });
   }
