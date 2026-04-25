@@ -163,4 +163,13 @@ window.QuillTree = {
       console.error('Failed to switch branch:', err);
     }
   },
+
+  /**
+   * Add a new node to the tree (helper for chat).
+   */
+  addNode() {
+    if (QuillApp.currentStory) {
+      this.render(QuillApp.currentStory);
+    }
+  },
 };

@@ -56,7 +56,7 @@ window.QuillChat = {
       return;
     }
 
-    story.messages.forEach(msg => this.appendMessage(msg, false));
+    branchMessages.forEach(msg => this.appendMessage(msg, false));
     this.scrollToBottom(true);
   },
 
@@ -84,6 +84,7 @@ window.QuillChat = {
         <div class="message-bubble">${content}</div>
         <div class="message-actions">
           <button class="btn-message-action btn-edit-message" title="Edit message">✏️</button>
+          <button class="btn-message-action btn-branch-message" title="Branch from here">🌿</button>
           <button class="btn-message-action btn-delete-message" title="Delete or Rewind">🗑️</button>
         </div>
       </div>
@@ -91,12 +92,17 @@ window.QuillChat = {
     `;
 
     const editBtn = el.querySelector('.btn-edit-message');
+    const branchBtn = el.querySelector('.btn-branch-message');
     const deleteBtn = el.querySelector('.btn-delete-message');
     const bubbleWrapper = el.querySelector('.message-bubble-wrapper');
     const bubble = el.querySelector('.message-bubble');
 
     editBtn.addEventListener('click', () => {
       this.openEditMode(msg, el, bubbleWrapper, bubble);
+    });
+
+    branchBtn.addEventListener('click', () => {
+      this.openBranchMode(msg);
     });
 
     deleteBtn.addEventListener('click', () => {
@@ -364,12 +370,14 @@ window.QuillChat = {
       
       // Smart scroll: only scroll if within 150px of the bottom
       const threshold = 150;
-      const position = this.messagesContainer.scrollHeight - this.messagesContainer.scrollTop - this.messagesContainer.clientHeight;
+                  const position = this.messagesContainer.scrollHeight - this.messagesContainer.scrollTop - this.messagesContainer.clientHeight;
       
       if (position < threshold) {
         this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
       }
     });
+  },
+
   /**
    * Open branch mode (Create a new divergent timeline from a message).
    */
