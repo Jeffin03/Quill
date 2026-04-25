@@ -420,6 +420,45 @@ window.QuillApp = {
   },
 
   /**
+   * Generate cards from a premise using AI.
+   */
+  async generateMagicCards() {
+    const premise = document.getElementById('input-magic-premise').value.trim();
+    if (!premise) {
+      alert('Please enter a premise or some story text first!');
+      return;
+    }
+
+    const btn = document.getElementById('btn-generate-magic');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Analyzing...';
+
+    try {
+      const storyId = this.currentStory?.id;
+      if (!storyId) throw new Error('No active story');
+
+      const newCards = await QuillAPI.generateCardsFromPremise(storyId, premise);
+      
+      // Update local state
+      this.currentStory.cards = newCards;
+      QuillCards.render(newCards);
+      
+      this.closeModal('modal-magic-cards');
+      QuillToast.show(`Generated ${newCards.length} context cards!`, 'success');
+      
+      // Reset input
+      document.getElementById('input-magic-premise').value = '';
+    } catch (err) {
+      console.error('Magic cards failure:', err);
+      QuillToast.show('Failed to generate cards: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  },
+
+  /**
    * Check for PWA updates.
    */
   checkUpdates() {
