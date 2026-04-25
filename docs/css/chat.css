@@ -260,7 +260,7 @@
 .message-bubble-wrapper {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-xs);
 }
 
@@ -268,26 +268,43 @@
   flex-direction: row-reverse;
 }
 
-.btn-edit-message {
+.message-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  margin-top: 4px;
+}
+
+.message:hover .message-actions {
+  opacity: 1;
+}
+
+.btn-message-action {
   background: transparent;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
   padding: 4px;
   border-radius: var(--radius-sm);
-  transition: opacity 0.2s, background 0.2s;
+  transition: background 0.2s, color 0.2s;
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.message:hover .btn-edit-message {
-  opacity: 0.6;
-}
-
-.btn-edit-message:hover {
-  opacity: 1 !important;
+.btn-message-action:hover {
   background: var(--bg-hover);
   color: var(--accent);
+}
+
+/* Mobile: Always show actions at low opacity */
+@media (max-width: 768px) {
+  .message-actions {
+    opacity: 0.4;
+  }
 }
 
 .message-edit-container {

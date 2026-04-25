@@ -75,10 +75,13 @@ window.QuillAPI = {
         // Build system prompt
         const systemPrompt = buildSystemPrompt(story);
 
-        // Build conversation history
+        // Build conversation history (Sliding Window: last 20 messages)
+        const historyLimit = 20;
+        const history = story.messages.slice(-historyLimit);
+        
         const llmMessages = [
           { role: 'system', content: systemPrompt },
-          ...story.messages.map(m => ({ role: m.role, content: m.content })),
+          ...history.map(m => ({ role: m.role, content: m.content })),
         ];
 
         let fullContent = '';

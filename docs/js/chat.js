@@ -80,12 +80,16 @@ window.QuillChat = {
       <span class="message-label">${label}</span>
       <div class="message-bubble-wrapper">
         <div class="message-bubble">${content}</div>
-        <button class="btn-edit-message" title="Edit message">✏️</button>
+        <div class="message-actions">
+          <button class="btn-message-action btn-edit-message" title="Edit message">✏️</button>
+          <button class="btn-message-action btn-delete-message" title="Delete or Rewind">🗑️</button>
+        </div>
       </div>
       <span class="message-time">${QuillUtils.formatTimeShort(msg.timestamp)}</span>
     `;
 
     const editBtn = el.querySelector('.btn-edit-message');
+    const deleteBtn = el.querySelector('.btn-delete-message');
     const bubbleWrapper = el.querySelector('.message-bubble-wrapper');
     const bubble = el.querySelector('.message-bubble');
 
@@ -93,8 +97,37 @@ window.QuillChat = {
       this.openEditMode(msg, el, bubbleWrapper, bubble);
     });
 
+    deleteBtn.addEventListener('click', () => {
+      this.openDeleteMode(msg, el);
+    });
+
     this.messagesContainer.appendChild(el);
     return el;
+  },
+
+  /**
+   * Open the delete/rewind options for a message.
+   */
+  openDeleteMode(msg, el) {
+    const storyId = QuillApp.currentStory.id;
+    const msgIndex = QuillApp.currentStory.messages.findIndex(m => m.id === msg.id);
+
+    if (confirm(`What would you like to do with this message?\n\nOK = REWIND (Delete everything from here onwards)\nCancel = DELETE ONLY (Just remove this bubble)`)) {
+      // Rewind
+      QuillAPI.rewindTimeline(storyId, msgIndex).then(updatedStory => {
+        QuillApp.currentStory = updatedStory;
+        this.render(updatedStory);
+        QuillTree.render(updatedStory);
+      });
+    } else {
+      // Just delete this one
+      const story = QuillApp.currentStory;
+      story.messages = story.messages.filter(m => m.id !== msg.id);
+      QuillAPI.updateStory(storyId, { messages: story.messages }).then(() => {
+        el.remove();
+        QuillTree.render(story);
+      });
+    }
   },
 
   /**
