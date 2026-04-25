@@ -43,7 +43,7 @@ window.QuillChat = {
   async render(story) {
     this.messagesContainer.innerHTML = '';
 
-    const branchMessages = await QuillAPI.getBranchMessages(story.id);
+    const branchMessages = await QuillAPI.getBranchMessages(story.id, null, story);
 
     if (!branchMessages || branchMessages.length === 0) {
       this.messagesContainer.innerHTML = `

@@ -55,8 +55,8 @@ window.QuillAPI = {
   /**
    * Get messages for the active branch (traverses parentId up to root).
    */
-  async getBranchMessages(storyId, leafId = null) {
-    const story = await QuillDB.getStory(storyId);
+  async getBranchMessages(storyId, leafId = null, storyObj = null) {
+    const story = storyObj || await QuillDB.getStory(storyId);
     if (!story || !story.messages || story.messages.length === 0) return [];
     
     const targetId = leafId || story.activeBranchId;
@@ -111,7 +111,7 @@ window.QuillAPI = {
         });
 
         // Build conversation history for THIS branch
-        const history = await this.getBranchMessages(storyId, userMsg.id);
+        const history = await this.getBranchMessages(storyId, userMsg.id, story);
         const historyLimit = 20;
         const recentHistory = history.slice(-historyLimit);
         
