@@ -13,7 +13,7 @@ Since Quill is a PWA (Progressive Web App), you can install it on your device:
 
 Quill requires an OpenAI-compatible API to generate text. You can use local models (free/private) or cloud services.
 
-### Local LLM Setup (The "Uncensored" Method)
+### Local LLM Setup
 To use local models (like Ollama) with the public web app, you must expose them through a secure tunnel.
 
 #### On Arch/Linux:
