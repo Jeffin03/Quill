@@ -1,6 +1,4 @@
-node_modules/
-.env
-data/stories/*.json
-data/config.json
 .DS_Store
-test-regex.js
+.env
+*.log
+data/
