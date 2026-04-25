@@ -988,6 +988,46 @@ body {
 }
 
 
+/* Genre Checkbox Grid */
+.genre-checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.checkbox-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.checkbox-pill:hover {
+  background: var(--bg-secondary);
+  border-color: var(--text-muted);
+}
+
+.checkbox-pill input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.checkbox-pill:has(input:checked) {
+  background: rgba(var(--color-primary-rgb), 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 /* Connection Status Pill (Home) */
 .connection-status-pill {
   display: flex;

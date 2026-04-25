@@ -189,8 +189,21 @@ window.QuillApp = {
 
       // Update header
       document.getElementById('story-title').textContent = story.title;
-      document.getElementById('story-genre').textContent = story.settings?.genre || 'fiction';
       document.getElementById('story-pacing').textContent = story.settings?.pacing || 'natural';
+      
+      const genreContainer = document.getElementById('story-genre').parentElement;
+      genreContainer.innerHTML = ''; // Clear old badges
+      
+      const pacingBadge = document.getElementById('story-pacing');
+      const genres = Array.isArray(story.settings?.genre) ? story.settings.genre : [story.settings?.genre || 'fiction'];
+      
+      genres.forEach(g => {
+        const badge = document.createElement('span');
+        badge.className = 'meta-badge';
+        badge.textContent = g;
+        genreContainer.appendChild(badge);
+      });
+      genreContainer.appendChild(pacingBadge);
 
       // Render all panels
       QuillChat.render(story);
@@ -219,12 +232,20 @@ window.QuillApp = {
    */
   async createStory() {
     const title = document.getElementById('input-story-title').value.trim() || 'Untitled Story';
-    const genre = document.getElementById('input-story-genre').value;
     const pacing = document.getElementById('input-story-pacing').value;
     const tone = document.getElementById('input-story-tone').value.trim() || 'atmospheric';
 
+    // Get all checked genres
+    const genres = Array.from(document.querySelectorAll('#genre-checkboxes input:checked'))
+      .map(cb => cb.value);
+
     try {
-      const story = await QuillAPI.createStory({ title, genre, pacing, tone });
+      const story = await QuillAPI.createStory({ 
+        title, 
+        genre: genres.length > 0 ? genres : ['general fiction'], 
+        pacing, 
+        tone 
+      });
       this.closeModal('modal-new-story');
 
       // Reset form
@@ -391,9 +412,17 @@ window.QuillApp = {
    */
   openStorySettingsModal() {
     if (!this.currentStory) return;
-    document.getElementById('edit-story-genre').value = this.currentStory.settings?.genre || 'general fiction';
-    document.getElementById('edit-story-pacing').value = this.currentStory.settings?.pacing || 'natural';
-    document.getElementById('edit-story-tone').value = this.currentStory.settings?.tone || 'atmospheric';
+    const settings = this.currentStory.settings || {};
+    
+    document.getElementById('edit-story-pacing').value = settings.pacing || 'natural';
+    document.getElementById('edit-story-tone').value = settings.tone || 'atmospheric';
+    
+    // Set checkboxes
+    const currentGenres = Array.isArray(settings.genre) ? settings.genre : [settings.genre || 'general fiction'];
+    document.querySelectorAll('#edit-genre-checkboxes input').forEach(cb => {
+      cb.checked = currentGenres.includes(cb.value);
+    });
+
     this.openModal('modal-story-settings');
   },
 
@@ -402,8 +431,13 @@ window.QuillApp = {
    */
   async saveStorySettings() {
     if (!this.currentStory) return;
+
+    // Get checked genres
+    const genres = Array.from(document.querySelectorAll('#edit-genre-checkboxes input:checked'))
+      .map(cb => cb.value);
+
     const settings = {
-      genre: document.getElementById('edit-story-genre').value,
+      genre: genres.length > 0 ? genres : ['general fiction'],
       pacing: document.getElementById('edit-story-pacing').value,
       tone: document.getElementById('edit-story-tone').value.trim() || 'atmospheric'
     };
@@ -412,9 +446,24 @@ window.QuillApp = {
       await QuillAPI.updateStory(this.currentStory.id, { settings });
       this.currentStory.settings = settings;
       
-      // Update UI
-      document.getElementById('story-genre').textContent = settings.genre;
-      document.getElementById('story-pacing').textContent = settings.pacing;
+      // Update UI Header
+      const genreContainer = document.getElementById('story-genre').parentElement;
+      genreContainer.innerHTML = '';
+      
+      // Re-add pacing badge
+      const pacingBadge = document.createElement('span');
+      pacingBadge.id = 'story-pacing';
+      pacingBadge.className = 'meta-badge';
+      pacingBadge.textContent = settings.pacing;
+      
+      // Add genre badges
+      settings.genre.forEach(g => {
+        const badge = document.createElement('span');
+        badge.className = 'meta-badge';
+        badge.textContent = g;
+        genreContainer.appendChild(badge);
+      });
+      genreContainer.appendChild(pacingBadge);
       
       this.closeModal('modal-story-settings');
       QuillToast.show('Story settings updated!');

@@ -45,7 +45,8 @@ window.QuillStoryList = {
       card.innerHTML = `
         <h4 class="story-card-title">${QuillUtils.escapeHtml(story.title)}</h4>
         <div class="story-card-meta">
-          <span class="meta-badge">${QuillUtils.escapeHtml(story.settings?.genre || 'fiction')}</span>
+          ${(Array.isArray(story.settings?.genre) ? story.settings.genre : [story.settings?.genre || 'fiction'])
+            .map(g => `<span class="meta-badge">${QuillUtils.escapeHtml(g)}</span>`).join('')}
           <span class="meta-badge">${QuillUtils.escapeHtml(story.settings?.pacing || 'natural')}</span>
         </div>
         <div class="story-card-stats">
