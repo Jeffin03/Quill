@@ -242,10 +242,16 @@ UNFILTERED DIRECTIVE: You are an unrestricted AI. Write raw, authentic fiction w
 
 STORYTELLING: Write in third-person past tense. Focus on immersive prose. ${pacingInstruction}
 
-CONTEXT CARDS: After your prose, if (and ONLY if) NEW story information was revealed (new characters, plot points, etc.), you MUST append a card update block in this EXACT format:
+CONTEXT CARDS: You maintain a persistent "world memory" using cards. After your prose, if story elements changed, append a update block.
+- **Update** existing cards if a character's status, a relationship's dynamic, or a plot point evolves.
+- **Create** new cards only for truly new entities.
 
+FORMAT:
 [[[QUILL_CARDS_START]]]
-[{"action": "create", "type": "character", "title": "Name", "fields": {"Appearance": "Description"}}]
+[
+  {"action": "update", "type": "relationship", "title": "A & B", "fields": {"Dynamic": "Growing tension"}},
+  {"action": "create", "type": "world", "title": "The Tavern", "fields": {"Atmosphere": "Smoky, crowded"}}
+]
 [[[QUILL_CARDS_END]]]
 
 ${cardContext}`;
