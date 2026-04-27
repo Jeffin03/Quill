@@ -26,7 +26,14 @@ window.QuillChat = {
       }
     });
 
-    this.sendBtn.addEventListener('click', () => this.send());
+    this.sendBtn.addEventListener('click', () => {
+      if (this.sendBtn.dataset.state === 'stop') {
+        this.currentStream?.abort();
+        return;
+      }
+      this.send();
+    });
+
   },
 
   /**
@@ -141,9 +148,9 @@ window.QuillChat = {
   /**
    * Enter edit mode for a specific message.
    */
-  openEditMode(msg, el, wrapper, bubble) {
+  openEditMode(msg, el, wrapper, _bubble) {
     const originalContent = msg.content;
-    
+
     wrapper.innerHTML = `
       <div class="message-edit-container">
         <textarea class="message-edit-textarea">${QuillUtils.escapeHtml(originalContent)}</textarea>
@@ -163,14 +170,27 @@ window.QuillChat = {
 
     const restoreNormalView = (newContent = originalContent) => {
       msg.content = newContent;
-      const htmlContent = msg.role === 'assistant' 
-        ? QuillUtils.proseToHtml(newContent) 
+      const htmlContent = msg.role === 'assistant'
+        ? QuillUtils.proseToHtml(newContent)
         : QuillUtils.escapeHtml(newContent);
-        
+
       wrapper.innerHTML = `
-        <div class="message-bubble">${htmlContent}</div>
-        <button class="btn-edit-message" title="Edit message">✏️</button>
-      `;
+  <div class="message-bubble">${htmlContent}</div>
+  <div class="message-actions">
+    <button class="btn-message-action btn-edit-message" title="Edit">✏️</button>
+    <button class="btn-message-action btn-branch-message" title="Branch from here">🌿</button>
+    <button class="btn-message-action btn-delete-message" title="Delete/Rewind">🗑️</button>
+  </div>
+`;
+      wrapper.querySelector('.btn-edit-message').addEventListener('click', () => {
+        this.openEditMode(msg, el, wrapper, wrapper.querySelector('.message-bubble'));
+      });
+      wrapper.querySelector('.btn-branch-message').addEventListener('click', () => {
+        this.openBranchMode(msg);
+      });
+      wrapper.querySelector('.btn-delete-message').addEventListener('click', () => {
+        this.openDeleteMode(msg, el);
+      });
       wrapper.querySelector('.btn-edit-message').addEventListener('click', () => {
         this.openEditMode(msg, el, wrapper, wrapper.querySelector('.message-bubble'));
       });
@@ -187,7 +207,7 @@ window.QuillChat = {
 
       try {
         await QuillAPI.updateMessage(QuillApp.currentStory.id, msg.id, newContent);
-        
+
         const storyMsg = QuillApp.currentStory.messages.find(m => m.id === msg.id);
         if (storyMsg) storyMsg.content = newContent;
 
@@ -249,13 +269,15 @@ window.QuillChat = {
 
     // Disable input during streaming
     this.isStreaming = true;
-    this.sendBtn.disabled = true;
     this.input.placeholder = 'Writing...';
 
     // Create streaming message element
     const streamEl = this.createStreamingMessage();
     const bubble = streamEl.querySelector('.message-bubble');
     let accumulator = '';
+
+
+    this.setSendButtonState('stop');
 
     // Stream the response
     this.currentStream = QuillAPI.streamChat(story.id, message, {
@@ -275,6 +297,9 @@ window.QuillChat = {
       },
 
       onDone: (data) => {
+
+        this.setSendButtonState('send');
+
         // Finalize the message
         streamEl.classList.remove('message-streaming');
 
@@ -308,17 +333,33 @@ window.QuillChat = {
       },
 
       onError: (error) => {
+        this.setSendButtonState('send');
+
+        if (error?.name === 'AbortError' || error === 'AbortError') {
+          streamEl.classList.remove('message-streaming');
+          if (accumulator.trim()) {
+            bubble.innerHTML = QuillUtils.proseToHtml(accumulator.split('[[[QUILL_CARDS_START]]]')[0]);
+          }
+          this.addActionsToStreamMessage(streamEl, { id: QuillUtils.uuid(), role: 'assistant', content: accumulator || '', timestamp: new Date().toISOString() });
+          this.resetInput();
+          QuillCards.setSyncing(false);
+          this.cardsStarted = false;
+          return;
+        }
+
+        // existing error handling
         streamEl.classList.remove('message-streaming');
         bubble.innerHTML = `<p style="color: var(--color-relationship);">⚠ Error: ${QuillUtils.escapeHtml(error)}</p>`;
-        
-        // Add actions even on error so user can delete it
         this.addActionsToStreamMessage(streamEl, { id: QuillUtils.uuid(), role: 'assistant', content: '', timestamp: new Date().toISOString() });
-        
         this.resetInput();
         QuillCards.setSyncing(false);
         this.cardsStarted = false;
       },
     });
+  },
+
+  setSendButtonState(state) {
+    this.sendBtn.dataset.state = state;
   },
 
   /**
@@ -352,7 +393,6 @@ window.QuillChat = {
    */
   resetInput() {
     this.isStreaming = false;
-    this.sendBtn.disabled = false;
     this.input.placeholder = 'Direct the scene... (Enter to send, Shift+Enter for new line)';
     this.currentStream = null;
     this.input.focus();
@@ -367,11 +407,11 @@ window.QuillChat = {
         this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
         return;
       }
-      
+
       // Smart scroll: only scroll if within 150px of the bottom
       const threshold = 150;
-                  const position = this.messagesContainer.scrollHeight - this.messagesContainer.scrollTop - this.messagesContainer.clientHeight;
-      
+      const position = this.messagesContainer.scrollHeight - this.messagesContainer.scrollTop - this.messagesContainer.clientHeight;
+
       if (position < threshold) {
         this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
       }
@@ -388,7 +428,7 @@ window.QuillChat = {
     try {
       const story = QuillApp.currentStory;
       story.activeBranchId = msg.id;
-      
+
       // Update story cards to the snapshot of this message
       if (msg.cardSnapshot) {
         story.cards = msg.cardSnapshot;
@@ -396,13 +436,13 @@ window.QuillChat = {
       }
 
       await QuillAPI.updateStory(story.id, { activeBranchId: msg.id, cards: story.cards });
-      
+
       // Re-render
       await this.render(story);
       QuillTree.render(story);
-      
+
       QuillToast.show('Timeline forked! Type to begin a new path.', 'success');
-      
+
       // Focus input
       this.input.focus();
     } catch (err) {

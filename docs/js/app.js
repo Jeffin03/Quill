@@ -26,6 +26,11 @@ window.QuillApp = {
 
     // Show story list view by default
     this.showView('story-list-view');
+    const hash = window.location.hash;
+    if (hash.startsWith('#story/')) {
+      const storyId = hash.replace('#story/', '');
+      if (storyId) this.openStory(storyId);
+    }
   },
 
   /**
@@ -76,6 +81,7 @@ window.QuillApp = {
     // Back to stories
     safeBind('btn-back', 'click', () => {
       this.currentStory = null;
+      history.pushState(null, '', window.location.pathname);
       this.showView('story-list-view');
       QuillStoryList.loadStories();
     });
@@ -128,6 +134,16 @@ window.QuillApp = {
       QuillCards.addFieldRow();
     });
 
+    window.addEventListener('popstate', (e) => {
+      if (e.state?.storyId) {
+        this.openStory(e.state.storyId);
+      } else {
+        this.currentStory = null;
+        this.showView('story-list-view');
+        QuillStoryList.loadStories();
+      }
+    })
+
     // Modal close buttons (querySelectorAll is inherently safe)
     document.querySelectorAll('.modal-close, .modal-footer .btn-ghost[data-modal]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -144,7 +160,7 @@ window.QuillApp = {
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
           overlay.classList.add('hidden');
-          QuillQR.stopScanner(); 
+          QuillQR.stopScanner();
         }
       });
     });
@@ -192,7 +208,7 @@ window.QuillApp = {
       const genreContainer = document.getElementById('story-meta');
       if (genreContainer) {
         genreContainer.innerHTML = ''; // Clear old badges
-        
+
         const genres = Array.isArray(story.settings?.genre) ? story.settings.genre : [story.settings?.genre || 'fiction'];
         genres.forEach(g => {
           const badge = document.createElement('span');
@@ -216,7 +232,7 @@ window.QuillApp = {
 
       // Switch to workspace view
       this.showView('workspace-view');
-
+      history.pushState({ storyId: id }, '', `#story/${id}`);
       // Auto-collapse panels on mobile
       if (window.innerWidth <= 768) {
         if (this.treePanelVisible) this.toggleTreePanel();
@@ -244,11 +260,11 @@ window.QuillApp = {
       .map(cb => cb.value);
 
     try {
-      const story = await QuillAPI.createStory({ 
-        title, 
-        genre: genres.length > 0 ? genres : ['general fiction'], 
-        pacing, 
-        tone 
+      const story = await QuillAPI.createStory({
+        title,
+        genre: genres.length > 0 ? genres : ['general fiction'],
+        pacing,
+        tone
       });
       this.closeModal('modal-new-story');
 
@@ -271,11 +287,11 @@ window.QuillApp = {
     const panel = document.getElementById('tree-panel');
     const btn = document.getElementById('btn-toggle-tree');
     const overlay = document.getElementById('mobile-overlay');
-    
+
     this.treePanelVisible = !this.treePanelVisible;
     panel.classList.toggle('collapsed', !this.treePanelVisible);
     btn.classList.toggle('active', this.treePanelVisible);
-    
+
     if (window.innerWidth <= 768) {
       if (this.treePanelVisible) {
         if (this.cardsPanelVisible) this.toggleCardsPanel();
@@ -293,11 +309,11 @@ window.QuillApp = {
     const panel = document.getElementById('cards-panel');
     const btn = document.getElementById('btn-toggle-cards');
     const overlay = document.getElementById('mobile-overlay');
-    
+
     this.cardsPanelVisible = !this.cardsPanelVisible;
     panel.classList.toggle('collapsed', !this.cardsPanelVisible);
     btn.classList.toggle('active', this.cardsPanelVisible);
-    
+
     if (window.innerWidth <= 768) {
       if (this.cardsPanelVisible) {
         if (this.treePanelVisible) this.toggleTreePanel();
@@ -436,10 +452,10 @@ window.QuillApp = {
   openStorySettingsModal() {
     if (!this.currentStory) return;
     const settings = this.currentStory.settings || {};
-    
+
     document.getElementById('edit-story-pacing').value = settings.pacing || 'natural';
     document.getElementById('edit-story-tone').value = settings.tone || 'atmospheric';
-    
+
     // Set checkboxes
     const currentGenres = Array.isArray(settings.genre) ? settings.genre : [settings.genre || 'general fiction'];
     document.querySelectorAll('#edit-genre-checkboxes input').forEach(cb => {
@@ -468,12 +484,12 @@ window.QuillApp = {
     try {
       await QuillAPI.updateStory(this.currentStory.id, { settings });
       this.currentStory.settings = settings;
-      
+
       // Update UI Header
       const genreContainer = document.getElementById('story-meta');
       if (genreContainer) {
         genreContainer.innerHTML = '';
-        
+
         // Add genre badges
         settings.genre.forEach(g => {
           const badge = document.createElement('span');
@@ -489,7 +505,7 @@ window.QuillApp = {
         pacingBadge.textContent = settings.pacing;
         genreContainer.appendChild(pacingBadge);
       }
-      
+
       this.closeModal('modal-story-settings');
       QuillToast.show('Story settings updated!');
     } catch (err) {
@@ -518,14 +534,14 @@ window.QuillApp = {
       if (!storyId) throw new Error('No active story');
 
       const newCards = await QuillAPI.generateCardsFromPremise(storyId, premise);
-      
+
       // Update local state
       this.currentStory.cards = newCards;
       QuillCards.render(newCards);
-      
+
       this.closeModal('modal-magic-cards');
       QuillToast.show(`Generated ${newCards.length} context cards!`, 'success');
-      
+
       // Reset input
       document.getElementById('input-magic-premise').value = '';
     } catch (err) {
@@ -573,11 +589,11 @@ window.QuillApp = {
       const timeoutId = setTimeout(() => controller.abort(), 2000);
 
       try {
-        const resp = await fetch(config.apiUrl.replace(/\/v1\/?$/, '') + '/api/tags', {
+        const resp = await fetch(config.apiUrl + '/models', {
           method: 'GET',
           signal: controller.signal
         });
-        
+
         clearTimeout(timeoutId);
 
         if (resp.ok) {
@@ -629,7 +645,7 @@ window.QuillToast = {
       <div class="toast-content">${message}</div>
       <button class="toast-close">×</button>
     `;
-    
+
     if (onClick) {
       toast.style.cursor = 'pointer';
       toast.addEventListener('click', (e) => {

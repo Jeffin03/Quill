@@ -167,7 +167,7 @@ window.QuillTree = {
   /**
    * Add a new node to the tree (helper for chat).
    */
-  addNode() {
+  addNode(message, prose) {
     if (QuillApp.currentStory) {
       this.render(QuillApp.currentStory);
     }

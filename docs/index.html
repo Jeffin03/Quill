@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Quill — A fanfic co-writing studio powered by AI with context cards and branching narratives">
+  <meta name="description"
+    content="Quill — A fanfic co-writing studio powered by AI with context cards and branching narratives">
   <title>Quill — Story Studio</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap"
+    rel="stylesheet">
+
   <!-- QR Scanner Library -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -29,6 +33,7 @@
   <link rel="stylesheet" href="./css/cards.css">
   <link rel="stylesheet" href="./css/tree.css">
 </head>
+
 <body>
   <!-- ═══════════════════════════════════════ -->
   <!-- Story List View (Landing)              -->
@@ -107,7 +112,7 @@
     <!-- Three-Panel Layout -->
     <div class="workspace-panels">
       <div id="mobile-overlay" class="mobile-overlay"></div>
-      
+
       <!-- Left: Story Tree -->
       <aside id="tree-panel" class="panel panel-tree">
         <div class="panel-header">
@@ -125,20 +130,23 @@
           <div id="chat-welcome" class="chat-welcome">
             <div class="welcome-icon">✒️</div>
             <h3>Ready to write</h3>
-            <p>Set the scene, introduce characters, or describe the world you want to build. You direct — the AI writes.</p>
+            <p>Set the scene, introduce characters, or describe the world you want to build. You direct — the AI writes.
+            </p>
           </div>
         </div>
 
         <div class="chat-input-area">
           <div class="input-wrapper">
-            <textarea
-              id="chat-input"
-              placeholder="Direct the scene... (Enter to send, Shift+Enter for new line)"
-              rows="1"
-            ></textarea>
-            <button id="btn-send" class="btn-send" title="Send direction">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"/>
+            <textarea id="chat-input" placeholder="Direct the scene... (Enter to send, Shift+Enter for new line)"
+              rows="1"></textarea>
+            <button id="btn-send" class="btn-send" data-state="send" title="Send direction">
+              <svg class="icon-send" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" />
+              </svg>
+              <svg class="icon-stop" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
+                style="display:none">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
               </svg>
             </button>
           </div>
@@ -150,7 +158,8 @@
         <div class="panel-header">
           <h3>Context Cards</h3>
           <div style="display: flex; gap: 4px;">
-            <button id="btn-magic-cards" class="btn btn-ghost btn-sm" title="Auto-generate cards from a premise">⚡ Auto</button>
+            <button id="btn-magic-cards" class="btn btn-ghost btn-sm" title="Auto-generate cards from a premise">⚡
+              Auto</button>
             <button id="btn-add-card" class="btn btn-ghost btn-sm" title="Add card manually">+</button>
           </div>
         </div>
@@ -207,7 +216,8 @@
         </div>
         <div class="form-group">
           <label for="input-story-tone">Tone</label>
-          <input type="text" id="input-story-tone" placeholder="e.g., atmospheric, dramatic, tender..." value="atmospheric" autocomplete="off">
+          <input type="text" id="input-story-tone" placeholder="e.g., atmospheric, dramatic, tender..."
+            value="atmospheric" autocomplete="off">
         </div>
       </div>
       <div class="modal-footer">
@@ -252,7 +262,8 @@
         </div>
         <div class="form-group">
           <label for="edit-story-tone">Tone</label>
-          <input type="text" id="edit-story-tone" placeholder="e.g., atmospheric, dramatic, tender..." autocomplete="off">
+          <input type="text" id="edit-story-tone" placeholder="e.g., atmospheric, dramatic, tender..."
+            autocomplete="off">
         </div>
       </div>
       <div class="modal-footer">
@@ -271,21 +282,28 @@
       </div>
       <div class="modal-body">
         <p style="color: var(--text-muted); font-size: 13px; margin-bottom: var(--space-md); line-height: 1.5;">
-          Quill connects to your local LLM (like Ollama or LM Studio) or any OpenAI-compatible API. 
-          <a href="https://github.com/jeffin03/Quill/wiki/Setup-Guide" target="_blank" style="color: var(--color-primary); text-decoration: underline;">View Setup Guide →</a>
+          Quill connects to your local LLM (like Ollama or LM Studio) or any OpenAI-compatible API.
+          <a href="https://github.com/jeffin03/Quill/wiki/Setup-Guide" target="_blank"
+            style="color: var(--color-primary); text-decoration: underline;">View Setup Guide →</a>
         </p>
         <div class="form-group">
           <label for="input-llm-url">API URL</label>
           <div style="display: flex; gap: var(--space-sm);">
-            <input type="text" id="input-llm-url" placeholder="http://localhost:5000/v1" autocomplete="off" style="flex: 1;">
-            <button id="btn-scan-qr" class="btn btn-ghost" title="Scan QR code from terminal" style="padding: 10px;">📷</button>
+            <input type="text" id="input-llm-url" placeholder="http://localhost:5000/v1" autocomplete="off"
+              style="flex: 1;">
+            <button id="btn-scan-qr" class="btn btn-ghost" title="Scan QR code from terminal"
+              style="padding: 10px;">📷</button>
           </div>
           <small>OpenAI-compatible endpoint (Colab, Ollama, LM Studio, etc.)</small>
         </div>
-        <div id="qr-reader" class="hidden" style="width: 100%; border-radius: var(--radius-md); overflow: hidden; margin-bottom: var(--space-md); border: 1px solid var(--border-accent);"></div>
+        <div id="qr-reader" class="hidden"
+          style="width: 100%; border-radius: var(--radius-md); overflow: hidden; margin-bottom: var(--space-md); border: 1px solid var(--border-accent);">
+        </div>
         <div class="form-group">
           <label for="input-llm-model">Model</label>
-          <input type="text" id="input-llm-model" name="quill_model" placeholder="Enter name or double-click for history..." autocomplete="off" list="list-recent-models" spellcheck="false">
+          <input type="text" id="input-llm-model" name="quill_model"
+            placeholder="Enter name or double-click for history..." autocomplete="off" list="list-recent-models"
+            spellcheck="false">
           <datalist id="list-recent-models">
             <!-- Populated by JS -->
           </datalist>
@@ -307,7 +325,8 @@
           </div>
         </div>
         <div class="alert alert-warning" style="margin-top: var(--space-md);">
-          ⚠️ <strong>Local Storage Only</strong>: Your stories are stored only in this browser's cache. Clearing browser data will delete all your work. Export backups regularly!
+          ⚠️ <strong>Local Storage Only</strong>: Your stories are stored only in this browser's cache. Clearing browser
+          data will delete all your work. Export backups regularly!
         </div>
       </div>
       <div class="modal-footer">
@@ -363,10 +382,14 @@
       </div>
       <div class="modal-body">
         <p style="color: var(--text-muted); font-size: 13px; margin-bottom: var(--space-md); line-height: 1.5;">
-          Paste your story premise, prologue, or character ideas below. Quill will analyze it and automatically build your starting Context Cards.
+          Paste your story premise, prologue, or character ideas below. Quill will analyze it and automatically build
+          your starting Context Cards.
         </p>
         <div class="form-group">
-          <textarea id="input-magic-premise" placeholder="It was a lingering, aching goodbye, a moment stolen from the clutches of propriety..." rows="10" style="width: 100%; resize: vertical; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); padding: var(--space-sm); font-family: var(--font-prose);"></textarea>
+          <textarea id="input-magic-premise"
+            placeholder="It was a lingering, aching goodbye, a moment stolen from the clutches of propriety..."
+            rows="10"
+            style="width: 100%; resize: vertical; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); padding: var(--space-sm); font-family: var(--font-prose);"></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -403,4 +426,5 @@
     }
   </script>
 </body>
+
 </html>
