@@ -125,27 +125,44 @@ window.QuillChat = {
    */
   openDeleteMode(msg, el) {
     const storyId = QuillApp.currentStory.id;
-    const msgIndex = QuillApp.currentStory.messages.findIndex(m => m.id === msg.id);
+    const modal = document.getElementById('modal-delete-message');
+    modal.classList.remove('hidden');
 
-    if (confirm(`What would you like to do with this message?\n\nOK = REWIND (Delete everything from here onwards)\nCancel = DELETE ONLY (Just remove this bubble)`)) {
-      // Rewind
+    const rewindBtn = document.getElementById('btn-rewind-here');
+    const deleteBtn = document.getElementById('btn-delete-only');
+    const close = () => modal.classList.add('hidden');
+
+    // Clone buttons to remove old listeners
+    const newRewindBtn = rewindBtn.cloneNode(true);
+    const newDeleteBtn = deleteBtn.cloneNode(true);
+    rewindBtn.replaceWith(newRewindBtn);
+    deleteBtn.replaceWith(newDeleteBtn);
+
+    modal.querySelector('.modal-close').addEventListener('click', close, { once: true });
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) close();
+    }, { once: true });
+
+    newRewindBtn.addEventListener('click', () => {
+      close();
+      const msgIndex = QuillApp.currentStory.messages.findIndex(m => m.id === msg.id);
       QuillAPI.rewindTimeline(storyId, msgIndex).then(updatedStory => {
         QuillApp.currentStory = updatedStory;
         this.render(updatedStory);
         QuillTree.render(updatedStory);
       });
-    } else {
-      // Just delete this one
+    }, { once: true });
+
+    newDeleteBtn.addEventListener('click', () => {
+      close();
       const story = QuillApp.currentStory;
       story.messages = story.messages.filter(m => m.id !== msg.id);
       QuillAPI.updateStory(storyId, { messages: story.messages }).then(() => {
         el.remove();
         QuillTree.render(story);
       });
-    }
-  },
-
-  /**
+    }, { once: true });
+  },  /**
    * Enter edit mode for a specific message.
    */
   openEditMode(msg, el, wrapper, _bubble) {

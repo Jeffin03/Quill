@@ -88,13 +88,21 @@ window.QuillCardEngine = (() => {
    * Auto-generate cards from a premise string using the LLM.
    */
   async function generateCardsFromPremise(existingCards, premise) {
-    const systemPrompt = `You are an unfiltered story data extractor. Read the story premise and extract key elements into structured JSON.
-    
+    const systemPrompt = `You are a story data extractor. Read the premise and extract key elements into a JSON array.
+
 RULES:
-1. Return ONLY a raw JSON array.
-2. No conversation, no markdown code blocks.
-3. Types: "character", "relationship", "plot", "world", "arc".
-4. Format: [{"action": "create", "type": "...", "title": "...", "fields": {...}}, ...]`;
+1. Return ONLY a raw JSON array, nothing else.
+2. No markdown, no code blocks, no explanation.
+3. Use ONLY these types with EXACTLY these fields:
+
+character: { name, age, appearance, personality, role, status }
+relationship: { person_a, person_b, dynamic, history, tension_level }
+world: { name, description, atmosphere, rules }
+plot: { title, summary, status, stakes }
+arc: { title, character, goal, obstacle, current_phase }
+
+4. Format: [{"action":"create","type":"...","title":"...","fields":{...}}]
+5. Maximum 8 cards. Only extract what is clearly stated.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -103,7 +111,7 @@ RULES:
 
     let rawJson = '';
     try {
-      rawJson = await QuillLLM.chat(messages);
+      rawJson = await QuillLLM.chat(messages, { temperature: 0.1, maxTokens: 1000 });
     } catch (err) {
       console.error('[CardEngine] Auto generation failed:', err);
       throw err;

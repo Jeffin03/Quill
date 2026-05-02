@@ -399,6 +399,29 @@
     </div>
   </div>
 
+  <!-- Delete Message Modal -->
+  <div id="modal-delete-message" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Delete Message</h3>
+        <button class="modal-close" data-modal="modal-delete-message">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">
+          What would you like to do with this message?
+        </p>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn btn-ghost" data-modal="modal-delete-message">Cancel</button>
+        <div style="display: flex; gap: var(--space-sm);">
+          <button id="btn-delete-only" class="btn btn-ghost">Delete Only</button>
+          <button id="btn-rewind-here" class="btn btn-primary" style="background: var(--color-relationship);">Rewind to
+            Here</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification System -->
   <div id="toast-container" class="toast-container"></div>
 

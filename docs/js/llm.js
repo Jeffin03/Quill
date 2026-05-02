@@ -103,7 +103,7 @@ window.QuillLLM = {
    * @param {Array} messages - Array of {role, content} objects
    * @returns {Promise<string>} - The full response text
    */
-  async chat(messages) {
+  async chat(messages, options = {}) {
     const config = await QuillDB.getConfig();
     const url = `${config.apiUrl}/chat/completions`;
     const headers = { 'Content-Type': 'application/json' };
@@ -112,7 +112,7 @@ window.QuillLLM = {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min timeout
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 1 min timeout
 
     try {
       const response = await fetch(url, {
@@ -122,8 +122,8 @@ window.QuillLLM = {
         body: JSON.stringify({
           model: config.model,
           messages,
-          max_tokens: config.maxTokens || 2048,
-          temperature: config.temperature || 0.85,
+          max_tokens: options.maxTokens || config.maxTokens || 2048,
+          temperature: options.temparature ?? config.temperature ?? 0.85,
           stream: false,
         }),
       });
