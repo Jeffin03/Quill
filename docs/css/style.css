@@ -1734,3 +1734,23 @@ body {
   color: var(--accent);
   margin-left: 6px;
 }
+
+/* ── QR Reader ──────────────────────────── */
+
+.qr-reader-container {
+  margin-top: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 300px;
+}
+
+.qr-reader-container.hidden {
+  display: none;
+}
+
+.btn-scan-conn {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}

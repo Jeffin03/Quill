@@ -605,6 +605,7 @@ window.QuillApp = {
           </div>
           <div class="connection-capabilities">${caps.join("")}</div>
           <div class="connection-actions">
+            ${(e.provider === "ollama" || e.provider === "lmstudio") ? `<button class="btn btn-ghost btn-sm btn-scan-conn" data-action="scan" data-index="${i}" title="Scan QR to update URL">QR</button>` : ""}
             <button class="btn btn-ghost btn-sm" data-action="edit" data-index="${i}" title="Edit">✎</button>
             <button class="btn btn-ghost btn-sm" data-action="delete" data-index="${i}" title="Remove">×</button>
           </div>
@@ -626,12 +627,57 @@ window.QuillApp = {
           this._renderConnectionsList(updated);
           this._renderFeatureRouting(updated, config.featureRouting || {});
           QuillToast.show(`Removed "${removed.label}"`, "info");
+        } else if (btn.dataset.action === "scan") {
+          this._scanQRForEntry(entries[idx]);
         }
       });
     });
 
     // Check connection status
     entries.forEach((e) => this._checkConnectionStatus(e));
+  },
+
+  async _scanQRForEntry(entry) {
+    const readerEl = document.getElementById("qr-reader-settings");
+    if (!readerEl) return;
+
+    if (QuillQR.scanner) {
+      await QuillQR.stopScanner();
+      return;
+    }
+
+    readerEl.classList.remove("hidden");
+
+    QuillQR.scanner = new Html5Qrcode("qr-reader-settings");
+    QuillQR.urlInput = { value: "" }; // Temporary holder
+
+    try {
+      await QuillQR.scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+        async (decodedText) => {
+          await QuillQR.stopScanner();
+          // Update the entry's host with scanned URL
+          const config = await QuillAPI.getConfig();
+          const entries = config.apiEntries || [];
+          const updated = entries.map((e) =>
+            e.id === entry.id ? { ...e, host: decodedText } : e,
+          );
+          await QuillAPI.updateConfig({ apiEntries: updated });
+          this._renderConnectionsList(updated);
+          this._renderFeatureRouting(updated, config.featureRouting || {});
+          QuillToast.show(
+            `Updated "${entry.label}" URL to ${decodedText}`,
+            "success",
+          );
+        },
+        () => {},
+      );
+    } catch (err) {
+      console.error("Camera error:", err);
+      QuillToast.show("Could not access camera. Check permissions.", "error");
+      await QuillQR.stopScanner();
+    }
   },
 
   _renderFeatureRouting(entries, routing) {

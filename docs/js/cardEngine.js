@@ -6,7 +6,8 @@
    ══════════════════════════════════════════ */
 
 window.QuillCardEngine = (() => {
-  const CARD_BLOCK_REGEX = /\[\[\[QUILL_CARDS_START\]\]\]\s*([\s\S]*?)\s*(?:\[\[\[QUILL_CARDS_END\]\]\]|$)/;
+  const CARD_BLOCK_REGEX =
+    /\[\[\[QUILL_CARDS_START\]\]\]\s*([\s\S]*?)\s*(?:\[\[\[QUILL_CARDS_END\]\]\]|$)/;
 
   /**
    * Parse context card update instructions from the LLM response.
@@ -21,12 +22,12 @@ window.QuillCardEngine = (() => {
     try {
       return JSON.parse(jsonStr);
     } catch (e) {
-      console.warn('[CardEngine] JSON parse failed, attempting repair...');
+      console.warn("[CardEngine] JSON parse failed, attempting repair...");
       try {
         const repaired = repairJson(jsonStr);
         return JSON.parse(repaired);
       } catch (e2) {
-        console.error('[CardEngine] Failed to repair JSON:', e2.message);
+        console.error("[CardEngine] Failed to repair JSON:", e2.message);
         return [];
       }
     }
@@ -36,7 +37,7 @@ window.QuillCardEngine = (() => {
    * Strip the card block from the response, returning prose only.
    */
   function stripCardBlock(rawResponse) {
-    return rawResponse.replace(CARD_BLOCK_REGEX, '').trim();
+    return rawResponse.replace(CARD_BLOCK_REGEX, "").trim();
   }
 
   /**
@@ -46,22 +47,24 @@ window.QuillCardEngine = (() => {
   function applyCardUpdates(existingCards, updates) {
     if (!updates || updates.length === 0) return existingCards;
 
-    const cards = existingCards.map(c => ({ ...c }));
+    const cards = existingCards.map((c) => ({ ...c }));
 
     for (const update of updates) {
       switch (update.action) {
-        case 'create': {
+        case "create": {
           cards.push({
             id: QuillUtils.uuid(),
-            type: update.type || 'world',
-            title: update.title || 'Untitled Card',
+            type: update.type || "world",
+            title: update.title || "Untitled Card",
             fields: update.fields || {},
             lastUpdated: new Date().toISOString(),
           });
           break;
         }
-        case 'update': {
-          const idx = cards.findIndex(c => c.title === update.title || c.id === update.id);
+        case "update": {
+          const idx = cards.findIndex(
+            (c) => c.title === update.title || c.id === update.id,
+          );
           if (idx !== -1) {
             cards[idx] = {
               ...cards[idx],
@@ -71,13 +74,15 @@ window.QuillCardEngine = (() => {
           }
           break;
         }
-        case 'delete': {
-          const idx = cards.findIndex(c => c.title === update.title || c.id === update.id);
+        case "delete": {
+          const idx = cards.findIndex(
+            (c) => c.title === update.title || c.id === update.id,
+          );
           if (idx !== -1) cards.splice(idx, 1);
           break;
         }
         default:
-          console.warn('[CardEngine] Unknown card action:', update.action);
+          console.warn("[CardEngine] Unknown card action:", update.action);
       }
     }
 
@@ -105,22 +110,31 @@ arc: { title, character, goal, obstacle, current_phase }
 5. Maximum 8 cards. Only extract what is clearly stated.`;
 
     const messages = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: `Extract elements from this premise:\n\n${premise}` },
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content: `Extract elements from this premise:\n\n${premise}`,
+      },
     ];
 
-    let rawJson = '';
+    let rawJson = "";
     try {
-      rawJson = await QuillLLM.chat(messages, { temperature: 0.1, maxTokens: 1000 });
+      rawJson = await QuillLLM.chat(messages, {
+        temperature: 0.1,
+        maxTokens: 1000,
+      });
     } catch (err) {
-      console.error('[CardEngine] Auto generation failed:', err);
+      console.error("[CardEngine] Auto generation failed:", err);
       throw err;
     }
 
     // Strip markdown and extract JSON array
-    rawJson = rawJson.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const startIdx = rawJson.indexOf('[');
-    const endIdx = rawJson.lastIndexOf(']');
+    rawJson = rawJson
+      .replace(/```json\n?/g, "")
+      .replace(/```\n?/g, "")
+      .trim();
+    const startIdx = rawJson.indexOf("[");
+    const endIdx = rawJson.lastIndexOf("]");
     if (startIdx !== -1 && endIdx !== -1) {
       rawJson = rawJson.substring(startIdx, endIdx + 1);
     }
@@ -128,13 +142,15 @@ arc: { title, character, goal, obstacle, current_phase }
     try {
       return applyCardUpdates(existingCards, JSON.parse(rawJson));
     } catch (e) {
-      console.warn('[CardEngine] JSON parse failed, attempting deep repair...');
+      console.warn("[CardEngine] JSON parse failed, attempting deep repair...");
       try {
         const repaired = repairJson(rawJson);
         return applyCardUpdates(existingCards, JSON.parse(repaired));
       } catch (e2) {
-        console.error('[CardEngine] Deep repair failed:', e2.message);
-        throw new Error('AI response was not valid JSON and could not be repaired.');
+        console.error("[CardEngine] Deep repair failed:", e2.message);
+        throw new Error(
+          "AI response was not valid JSON and could not be repaired.",
+        );
       }
     }
   }
@@ -152,7 +168,7 @@ arc: { title, character, goal, obstacle, current_phase }
     s = s.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
 
     // 3. Remove trailing commas before closing braces/brackets
-    s = s.replace(/,\s*([\}\]])/g, '$1');
+    s = s.replace(/,\s*([\}\]])/g, "$1");
 
     // 4. Handle truncated strings (close unclosed quotes)
     const quoteCount = (s.match(/"/g) || []).length;
@@ -161,11 +177,11 @@ arc: { title, character, goal, obstacle, current_phase }
     // 5. Close unclosed objects/arrays
     const openBraces = (s.match(/\{/g) || []).length;
     const closeBraces = (s.match(/\}/g) || []).length;
-    for (let i = 0; i < openBraces - closeBraces; i++) s += '}';
+    for (let i = 0; i < openBraces - closeBraces; i++) s += "}";
 
     const openBrackets = (s.match(/\[/g) || []).length;
     const closeBrackets = (s.match(/\]/g) || []).length;
-    for (let i = 0; i < openBrackets - closeBrackets; i++) s += ']';
+    for (let i = 0; i < openBrackets - closeBrackets; i++) s += "]";
 
     return s;
   }
