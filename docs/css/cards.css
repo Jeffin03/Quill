@@ -161,7 +161,7 @@
 }
 
 .card-field-key::after {
-  content: ':';
+  content: ":";
 }
 
 .card-field-value {

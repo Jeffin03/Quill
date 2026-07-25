@@ -14,7 +14,7 @@
 
 /* Vertical connecting line */
 .tree-timeline::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 19px;
   top: 0;

@@ -9,22 +9,23 @@ window.QuillCards = {
    * Initialize the cards module.
    */
   init() {
-    this.container = document.getElementById('cards-content');
-    this.emptyEl = document.getElementById('cards-empty');
-    this.headerEl = document.querySelector('#cards-panel .panel-header h3');
-    this.originalHeader = this.headerEl.textContent;
+    this.container = document.getElementById("cards-content");
+    this.emptyEl = document.getElementById("cards-empty");
+    this.headerEl = document.querySelector("#cards-panel .panel-header h3") || document.querySelector("#cards-panel .panel-header");
+    this.originalHeader = this.headerEl?.textContent || '🃏 Cards';
   },
 
   /**
    * Toggle the syncing state (visual feedback).
    */
   setSyncing(isSyncing) {
+    if (!this.headerEl) return;
     if (isSyncing) {
       this.headerEl.innerHTML = `${this.originalHeader} <span class="sync-indicator">Syncing...</span>`;
-      this.container.classList.add('syncing');
+      this.container?.classList.add("syncing");
     } else {
       this.headerEl.textContent = this.originalHeader;
-      this.container.classList.remove('syncing');
+      this.container?.classList.remove("syncing");
     }
   },
 
@@ -34,10 +35,13 @@ window.QuillCards = {
   render(cards) {
     // Track previous state for "updated" animation
     const previousCardsMap = new Map(
-      (QuillApp.currentStory?.cards || []).map(c => [c.id, JSON.stringify(c.fields)])
+      (QuillApp.currentStory?.cards || []).map((c) => [
+        c.id,
+        JSON.stringify(c.fields),
+      ]),
     );
 
-    this.container.innerHTML = '';
+    this.container.innerHTML = "";
 
     if (!cards || cards.length === 0) {
       this.container.innerHTML = `
@@ -51,7 +55,7 @@ window.QuillCards = {
 
     // Group cards by type
     const groups = {};
-    const typeOrder = ['character', 'relationship', 'plot', 'world', 'arc'];
+    const typeOrder = ["character", "relationship", "plot", "world", "arc"];
 
     for (const card of cards) {
       if (!groups[card.type]) groups[card.type] = [];
@@ -72,7 +76,7 @@ window.QuillCards = {
     }
 
     // Track card IDs for "new card" animation detection
-    const currentIds = new Set(cards.map(c => c.id));
+    const currentIds = new Set(cards.map((c) => c.id));
     this.previousCardIds = currentIds;
   },
 
@@ -80,11 +84,11 @@ window.QuillCards = {
    * Render a group of cards with a header.
    */
   renderGroup(type, cards, previousCardsMap) {
-    const group = document.createElement('div');
-    group.className = 'card-group';
+    const group = document.createElement("div");
+    group.className = "card-group";
 
-    const header = document.createElement('div');
-    header.className = 'card-group-header';
+    const header = document.createElement("div");
+    header.className = "card-group-header";
     header.textContent = `${QuillUtils.cardTypeIcon(type)} ${QuillUtils.cardTypeLabel(type)}`;
     group.appendChild(header);
 
@@ -99,41 +103,43 @@ window.QuillCards = {
    * Render a single context card element.
    */
   renderCard(card, previousCardsMap) {
-    const isNew = this.previousCardIds.size > 0 && !this.previousCardIds.has(card.id);
+    const isNew =
+      this.previousCardIds.size > 0 && !this.previousCardIds.has(card.id);
     const oldFieldsJson = previousCardsMap.get(card.id);
-    const isUpdated = oldFieldsJson && oldFieldsJson !== JSON.stringify(card.fields);
+    const isUpdated =
+      oldFieldsJson && oldFieldsJson !== JSON.stringify(card.fields);
 
-    const el = document.createElement('div');
-    el.className = `context-card ${isNew ? 'new-card' : ''} ${isUpdated ? 'updated' : ''}`;
+    const el = document.createElement("div");
+    el.className = `context-card ${isNew ? "new-card" : ""} ${isUpdated ? "updated" : ""}`;
     el.dataset.type = card.type;
     el.dataset.id = card.id;
 
     // Title row with actions
-    const titleRow = document.createElement('div');
-    titleRow.className = 'card-title-row';
+    const titleRow = document.createElement("div");
+    titleRow.className = "card-title-row";
 
-    const titleInput = document.createElement('input');
-    titleInput.className = 'card-title';
-    titleInput.type = 'text';
+    const titleInput = document.createElement("input");
+    titleInput.className = "card-title";
+    titleInput.type = "text";
     titleInput.value = card.title;
-    titleInput.addEventListener('change', () => {
+    titleInput.addEventListener("change", () => {
       this.updateCard(card.id, { title: titleInput.value });
     });
 
-    const actions = document.createElement('div');
-    actions.className = 'card-actions';
+    const actions = document.createElement("div");
+    actions.className = "card-actions";
 
-    const editBtn = document.createElement('button');
-    editBtn.className = 'card-action-btn';
-    editBtn.textContent = '✏️';
-    editBtn.title = 'Edit fields';
-    editBtn.addEventListener('click', () => this.openEditModal(card));
+    const editBtn = document.createElement("button");
+    editBtn.className = "card-action-btn";
+    editBtn.textContent = "✏️";
+    editBtn.title = "Edit fields";
+    editBtn.addEventListener("click", () => this.openEditModal(card));
 
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'card-action-btn delete';
-    deleteBtn.textContent = '×';
-    deleteBtn.title = 'Delete card';
-    deleteBtn.addEventListener('click', () => this.deleteCard(card.id));
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "card-action-btn delete";
+    deleteBtn.textContent = "×";
+    deleteBtn.title = "Delete card";
+    deleteBtn.addEventListener("click", () => this.deleteCard(card.id));
 
     actions.appendChild(editBtn);
     actions.appendChild(deleteBtn);
@@ -143,22 +149,22 @@ window.QuillCards = {
     el.appendChild(titleRow);
 
     // Fields
-    const fieldsContainer = document.createElement('div');
-    fieldsContainer.className = 'card-fields';
+    const fieldsContainer = document.createElement("div");
+    fieldsContainer.className = "card-fields";
 
     for (const [key, value] of Object.entries(card.fields || {})) {
-      const field = document.createElement('div');
-      field.className = 'card-field';
+      const field = document.createElement("div");
+      field.className = "card-field";
 
-      const keyEl = document.createElement('span');
-      keyEl.className = 'card-field-key';
+      const keyEl = document.createElement("span");
+      keyEl.className = "card-field-key";
       keyEl.textContent = key;
 
-      const valueInput = document.createElement('input');
-      valueInput.className = 'card-field-value';
-      valueInput.type = 'text';
+      const valueInput = document.createElement("input");
+      valueInput.className = "card-field-value";
+      valueInput.type = "text";
       valueInput.value = value;
-      valueInput.addEventListener('change', () => {
+      valueInput.addEventListener("change", () => {
         this.updateCard(card.id, { fields: { [key]: valueInput.value } });
       });
 
@@ -177,9 +183,9 @@ window.QuillCards = {
   flashCard(cardId) {
     const el = this.container.querySelector(`[data-id="${cardId}"]`);
     if (el) {
-      el.classList.remove('updated');
+      el.classList.remove("updated");
       void el.offsetWidth; // force reflow
-      el.classList.add('updated');
+      el.classList.add("updated");
     }
   },
 
@@ -194,7 +200,7 @@ window.QuillCards = {
       await QuillAPI.updateCard(storyId, cardId, data);
       this.flashCard(cardId);
     } catch (err) {
-      console.error('Failed to update card:', err);
+      console.error("Failed to update card:", err);
     }
   },
 
@@ -205,15 +211,17 @@ window.QuillCards = {
     const storyId = QuillApp.currentStory?.id;
     if (!storyId) return;
 
-    if (!confirm('Delete this card?')) return;
+    if (!confirm("Delete this card?")) return;
 
     try {
       await QuillAPI.deleteCard(storyId, cardId);
       // Remove from local state and re-render
-      QuillApp.currentStory.cards = QuillApp.currentStory.cards.filter(c => c.id !== cardId);
+      QuillApp.currentStory.cards = QuillApp.currentStory.cards.filter(
+        (c) => c.id !== cardId,
+      );
       this.render(QuillApp.currentStory.cards);
     } catch (err) {
-      console.error('Failed to delete card:', err);
+      console.error("Failed to delete card:", err);
     }
   },
 
@@ -223,27 +231,27 @@ window.QuillCards = {
   openEditModal(card) {
     // For now, use the add card modal repurposed for editing
     // This is a simplified approach — a dedicated edit modal could be added later
-    const modal = document.getElementById('modal-add-card');
-    const typeSelect = document.getElementById('input-card-type');
-    const titleInput = document.getElementById('input-card-title');
-    const fieldsList = document.getElementById('card-fields-list');
-    const saveBtn = document.getElementById('btn-save-card');
+    const modal = document.getElementById("modal-add-card");
+    const typeSelect = document.getElementById("input-card-type");
+    const titleInput = document.getElementById("input-card-title");
+    const fieldsList = document.getElementById("card-fields-list");
+    const saveBtn = document.getElementById("btn-save-card");
 
     typeSelect.value = card.type;
     titleInput.value = card.title;
 
     // Populate fields
-    fieldsList.innerHTML = '';
+    fieldsList.innerHTML = "";
     for (const [key, value] of Object.entries(card.fields || {})) {
       this.addFieldRow(key, value);
     }
 
     // Change save button behavior for editing
-    saveBtn.textContent = 'Save Changes';
+    saveBtn.textContent = "Save Changes";
     saveBtn.onclick = async () => {
       const fields = {};
-      fieldsList.querySelectorAll('.field-row').forEach(row => {
-        const inputs = row.querySelectorAll('input');
+      fieldsList.querySelectorAll(".field-row").forEach((row) => {
+        const inputs = row.querySelectorAll("input");
         const k = inputs[0].value.trim();
         const v = inputs[1].value.trim();
         if (k) fields[k] = v;
@@ -257,7 +265,9 @@ window.QuillCards = {
         });
 
         // Update local state
-        const idx = QuillApp.currentStory.cards.findIndex(c => c.id === card.id);
+        const idx = QuillApp.currentStory.cards.findIndex(
+          (c) => c.id === card.id,
+        );
         if (idx !== -1) {
           QuillApp.currentStory.cards[idx] = {
             ...QuillApp.currentStory.cards[idx],
@@ -268,33 +278,35 @@ window.QuillCards = {
         }
 
         this.render(QuillApp.currentStory.cards);
-        QuillApp.closeModal('modal-add-card');
+        QuillApp.closeModal("modal-add-card");
       } catch (err) {
-        console.error('Failed to update card:', err);
+        console.error("Failed to update card:", err);
       }
 
       // Reset button
-      saveBtn.textContent = 'Add Card';
+      saveBtn.textContent = "Add Card";
       saveBtn.onclick = null;
     };
 
-    modal.classList.remove('hidden');
+    modal.classList.remove("hidden");
   },
 
   /**
    * Add a field row to the card fields editor in the modal.
    */
-  addFieldRow(key = '', value = '') {
-    const fieldsList = document.getElementById('card-fields-list');
-    const row = document.createElement('div');
-    row.className = 'field-row';
+  addFieldRow(key = "", value = "") {
+    const fieldsList = document.getElementById("card-fields-list");
+    const row = document.createElement("div");
+    row.className = "field-row";
     row.innerHTML = `
       <input type="text" placeholder="Field name" value="${QuillUtils.escapeHtml(key)}">
       <input type="text" placeholder="Value" value="${QuillUtils.escapeHtml(value)}">
       <button class="field-remove" title="Remove field">×</button>
     `;
 
-    row.querySelector('.field-remove').addEventListener('click', () => row.remove());
+    row
+      .querySelector(".field-remove")
+      .addEventListener("click", () => row.remove());
     fieldsList.appendChild(row);
   },
 };

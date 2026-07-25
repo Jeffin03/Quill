@@ -23,6 +23,10 @@ const ASSETS_TO_CACHE = [
   './js/tree.js',
   './js/storyList.js',
   './js/utils.js',
+  './js/imageGen.js',
+  './js/characterDesign.js',
+  './js/comic.js',
+  './css/comic.css',
   './manifest.json',
 ];
 
@@ -56,9 +60,15 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // Skip LLM API calls — always go to network
   const url = new URL(event.request.url);
+
+  // Skip all external requests — only cache same-origin static assets
+  if (url.origin !== self.location.origin) return;
+
+  // Skip LLM API calls — always go to network
   if (url.pathname.includes('/chat/completions')) return;
+  if (url.pathname.includes('/v1/models')) return;
+  if (url.pathname.includes('/api/tags')) return;
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
