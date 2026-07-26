@@ -94,27 +94,25 @@ window.QuillCardEngine = (() => {
    * Auto-generate cards from a premise string using the LLM.
    */
   async function generateCardsFromPremise(existingCards, premise) {
-    const systemPrompt = `You are a story data extractor. Read the premise and extract key elements into a JSON array.
+    const systemPrompt = `You are a story data extractor. Read the premise below and extract key elements into a JSON array.
 
 RULES:
-1. Return ONLY a raw JSON array, nothing else.
-2. No markdown, no code blocks, no explanation.
-3. Use ONLY these types with EXACTLY these fields:
-
-character: {"name":"...","age":"...","appearance":"...","personality":"...","role":"...","status":"..."}
-relationship: {"person_a":"...","person_b":"...","dynamic":"...","history":"...","tension_level":"..."}
-world: {"name":"...","description":"...","atmosphere":"...","rules":"..."}
-plot: {"title":"...","summary":"...","status":"...","stakes":"..."}
-arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_phase":"..."}
-
-4. Format: [{"action":"create","type":"...","title":"...","fields":{...}}]
-5. Maximum 8 cards. Only extract what is clearly stated.`;
+1. I will repeat: output ONLY a raw JSON array — no explanation, no markdown, no introductory text.
+2. Use ONLY these types with EXACTLY these fields:
+   - character: {"name":"...","age":"...","appearance":"...","personality":"...","role":"...","status":"..."}
+   - relationship: {"person_a":"...","person_b":"...","dynamic":"...","history":"...","tension_level":"..."}
+   - world: {"name":"...","description":"...","atmosphere":"...","rules":"..."}
+   - plot: {"title":"...","summary":"...","status":"...","stakes":"..."}
+   - arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_phase":"..."}
+3. Format each entry as: {"action":"create","type":"...","title":"...","fields":{...}}
+4. Maximum 8 cards. Only extract what is clearly stated.
+5. WARNING: If you include any text outside the JSON array, the program will crash.`;
 
     const messages = [
       { role: "system", content: systemPrompt },
       {
         role: "user",
-        content: `Extract elements from this premise:\n\n${premise}`,
+        content: `Extract elements from this premise and output ONLY the JSON array (no text before or after):\n\n${premise}\n\n[`,
       },
     ];
 
@@ -129,6 +127,13 @@ arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_pha
       throw err;
     }
 
+    // Prepend "[" if the model didn't continue from the prefix (some models
+    // strip the prefix and start fresh)
+    rawJson = rawJson.trim();
+    if (!rawJson.startsWith("[")) {
+      rawJson = "[" + rawJson;
+    }
+
     // Strip markdown and extract JSON array
     rawJson = rawJson
       .replace(/```json\n?/g, "")
@@ -138,6 +143,11 @@ arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_pha
     const endIdx = rawJson.lastIndexOf("]");
     if (startIdx !== -1 && endIdx !== -1) {
       rawJson = rawJson.substring(startIdx, endIdx + 1);
+    } else {
+      console.warn("[CardEngine] No JSON array found in response, raw:", rawJson.slice(0, 300));
+      throw new Error(
+        "AI returned no JSON at all. Your model may not support structured output — try a different model.",
+      );
     }
 
     let parsed;
@@ -152,7 +162,6 @@ arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_pha
       } catch (e2) {
         console.error("[CardEngine] Deep repair failed:", e2.message);
         console.error("[CardEngine] Repaired:", repaired.slice(0, 500));
-        // Show what's at the offending column
         const colMatch = e2.message.match(/column (\d+)/);
         if (colMatch) {
           const col = parseInt(colMatch[1], 10);
