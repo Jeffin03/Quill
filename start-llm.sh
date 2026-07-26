@@ -8,7 +8,9 @@
 TUNNEL_LOG="/tmp/quill_tunnel.log"
 LLM_PID=""
 TUNNEL_PID=""
+PROXY_PID=""
 LLM_PORT=""
+CORS_PROXY_PORT=""
 
 # ── Helpers ────────────────────────────────
 
@@ -48,6 +50,7 @@ cleanup() {
   echo ""
   echo "Shutting down..."
   [ -n "$LLM_PID" ] && kill "$LLM_PID" 2>/dev/null
+  [ -n "$PROXY_PID" ] && kill "$PROXY_PID" 2>/dev/null
   [ -n "$TUNNEL_PID" ] && kill "$TUNNEL_PID" 2>/dev/null
   rm -f "$TUNNEL_LOG"
   exit 0
@@ -132,7 +135,47 @@ case "$PROVIDER" in
       print_error "LM Studio not responding" "Open LM Studio GUI, enable the server (port $LLM_PORT), then re-run.\nVerify with: curl http://localhost:$LLM_PORT/v1/models"
       exit 1
     fi
-    print_box "LM Studio Running" "Endpoint: http://localhost:$LLM_PORT"
+    # Start CORS proxy — LM Studio doesn't set CORS headers, but the
+    # cloudflared tunnel is cross-origin from the Quill app, so the
+    # browser would block the response without them.
+    CORS_PROXY_PORT=11435
+    echo "Starting CORS proxy on port $CORS_PROXY_PORT..."
+    node -e "
+const http = require('http');
+http.createServer((req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': '*',
+    });
+    return res.end();
+  }
+  const opts = {
+    hostname: '127.0.0.1',
+    port: $LLM_PORT,
+    path: req.url,
+    method: req.method,
+    headers: { ...req.headers, host: '127.0.0.1:$LLM_PORT' },
+  };
+  const proxy = http.request(opts, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, { ...proxyRes.headers, 'Access-Control-Allow-Origin': '*' });
+    proxyRes.pipe(res);
+  });
+  proxy.on('error', () => res.writeHead(502).end());
+  req.pipe(proxy);
+}).listen($CORS_PROXY_PORT, '0.0.0.0');
+console.log('CORS proxy running on port $CORS_PROXY_PORT');
+" &
+    PROXY_PID=$!
+    sleep 1
+    if ! kill -0 "$PROXY_PID" 2>/dev/null; then
+      print_error "CORS proxy failed to start"
+      exit 1
+    fi
+    # Use the proxy port for the tunnel
+    LLM_PORT=$CORS_PROXY_PORT
+    print_box "LM Studio Running" "Endpoint: http://localhost:1234\nCORS proxy: http://0.0.0.0:$CORS_PROXY_PORT"
     ;;
 esac
 echo ""
