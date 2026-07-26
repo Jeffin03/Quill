@@ -1,42 +1,55 @@
 import { useState } from 'react';
-import { Plus, Wand2, User, Heart, BookOpen, Globe, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Wand2, User, Heart, BookOpen, Globe, Ruler, ChevronDown, ChevronUp } from 'lucide-react';
 import type { ContextCard } from '../types';
 
-const TYPE_CONFIG: Record<ContextCard['type'], { label: string; icon: React.ReactNode; color: string; bg: string; border: string }> = {
+// Updated card type colors per spec
+const TYPE_CONFIG: Record<ContextCard['type'], {
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  bg: string;
+  border: string;
+  dot: string;
+}> = {
   character: {
     label: 'Character',
     icon: <User size={13} />,
-    color: 'text-amber-400',
-    bg: 'bg-amber-400/8',
-    border: 'border-amber-400/20',
+    color: 'text-[#7aa2f7]',
+    bg: 'bg-[#7aa2f7]/8',
+    border: 'border-[#7aa2f7]/22',
+    dot: '#7aa2f7',
   },
   relationship: {
     label: 'Relationship',
     icon: <Heart size={13} />,
-    color: 'text-rose-400',
-    bg: 'bg-rose-400/8',
-    border: 'border-rose-400/20',
+    color: 'text-[#f7768e]',
+    bg: 'bg-[#f7768e]/8',
+    border: 'border-[#f7768e]/22',
+    dot: '#f7768e',
   },
   plot: {
     label: 'Plot',
     icon: <BookOpen size={13} />,
-    color: 'text-indigo-400',
-    bg: 'bg-indigo-400/8',
-    border: 'border-indigo-400/20',
+    color: 'text-[#bb9af7]',
+    bg: 'bg-[#bb9af7]/8',
+    border: 'border-[#bb9af7]/22',
+    dot: '#bb9af7',
   },
   world: {
     label: 'World',
     icon: <Globe size={13} />,
-    color: 'text-teal-400',
-    bg: 'bg-teal-400/8',
-    border: 'border-teal-400/20',
+    color: 'text-[#9ece6a]',
+    bg: 'bg-[#9ece6a]/8',
+    border: 'border-[#9ece6a]/22',
+    dot: '#9ece6a',
   },
   arc: {
     label: 'Arc',
-    icon: <TrendingUp size={13} />,
-    color: 'text-lime-400',
-    bg: 'bg-lime-400/8',
-    border: 'border-lime-400/20',
+    icon: <Ruler size={13} />,
+    color: 'text-[#e0af68]',
+    bg: 'bg-[#e0af68]/8',
+    border: 'border-[#e0af68]/22',
+    dot: '#e0af68',
   },
 };
 
@@ -85,7 +98,6 @@ export function ContextCardsPanel({ cards, onAddCard, onAutoGenerate }: ContextC
   const [filter, setFilter] = useState<ContextCard['type'] | 'all'>('all');
 
   const filtered = filter === 'all' ? cards : cards.filter(c => c.type === filter);
-
   const countFor = (t: ContextCard['type'] | 'all') =>
     t === 'all' ? cards.length : cards.filter(c => c.type === t).length;
 

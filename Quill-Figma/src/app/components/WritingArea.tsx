@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Feather, MoreHorizontal } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Feather, ImagePlus, GitFork, Pencil, Trash2, Save, X } from 'lucide-react';
 import type { StorySegment } from '../types';
 
 function renderMarkdown(text: string) {
@@ -7,7 +7,6 @@ function renderMarkdown(text: string) {
     .split('\n\n')
     .map((para, i) => {
       if (!para.trim()) return null;
-      // Handle *italic* within paragraph
       const parts = para.split(/(\*[^*]+\*)/g).map((chunk, j) => {
         if (chunk.startsWith('*') && chunk.endsWith('*')) {
           return <em key={j}>{chunk.slice(1, -1)}</em>;
@@ -22,7 +21,7 @@ function renderMarkdown(text: string) {
 function DirectionNote({ content }: { content: string }) {
   return (
     <div className="my-6 flex items-start gap-3 px-1">
-      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[#c8922a]/50 shrink-0 mt-[7px]" />
+      <div className="w-1.5 h-1.5 rounded-full bg-[#c8922a]/50 shrink-0 mt-[7px]" />
       <p className="text-sm text-[#72708a] italic leading-relaxed">
         You directed: <span className="text-[#9992a6]">{content}</span>
       </p>
@@ -33,23 +32,106 @@ function DirectionNote({ content }: { content: string }) {
 function NarrativeBlock({
   content,
   isNew,
-  onOptions,
+  onVisualize,
+  onBranch,
+  onEdit,
+  onDelete,
 }: {
   content: string;
   isNew?: boolean;
-  onOptions: () => void;
+  onVisualize: () => void;
+  onBranch: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   return (
     <div className={`group relative ${isNew ? 'segment-enter' : ''}`}>
       <div className="manuscript text-[#e6e0d4] space-y-0">
         {renderMarkdown(content)}
       </div>
-      <button
-        onClick={onOptions}
-        className="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-[#72708a] hover:text-[#e6e0d4] hover:bg-white/8"
-      >
-        <MoreHorizontal size={15} />
-      </button>
+
+      {/* Hover action bar */}
+      <div className="mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={onVisualize}
+          title="Visualize scene"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[#72708a] hover:text-[#c8922a] hover:bg-[#c8922a]/8 transition-colors text-xs"
+        >
+          <ImagePlus size={13} />
+          <span className="hidden sm:inline">Visualize</span>
+        </button>
+        <button
+          onClick={onBranch}
+          title="Branch from here"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[#72708a] hover:text-[#7c6dd8] hover:bg-[#7c6dd8]/8 transition-colors text-xs"
+        >
+          <GitFork size={13} />
+          <span className="hidden sm:inline">Branch</span>
+        </button>
+        <button
+          onClick={onEdit}
+          title="Edit passage"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[#72708a] hover:text-[#4ab5a3] hover:bg-[#4ab5a3]/8 transition-colors text-xs"
+        >
+          <Pencil size={13} />
+          <span className="hidden sm:inline">Edit</span>
+        </button>
+        <button
+          onClick={onDelete}
+          title="Delete / rewind"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[#72708a] hover:text-red-400 hover:bg-red-400/8 transition-colors text-xs"
+        >
+          <Trash2 size={13} />
+          <span className="hidden sm:inline">Delete</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function InlineEditBlock({
+  content,
+  onSave,
+  onCancel,
+}: {
+  content: string;
+  onSave: (v: string) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(content);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+      textareaRef.current.focus();
+    }
+  }, []);
+
+  return (
+    <div className="segment-enter">
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        className="w-full bg-[#1c1c24] border border-[#c8922a]/30 rounded-xl text-[#e6e0d4] p-4 resize-none outline-none focus:border-[#c8922a]/55 transition-colors leading-relaxed"
+        style={{ fontFamily: "'EB Garamond', serif", fontSize: '1.125rem', lineHeight: 1.95, minHeight: 120 }}
+      />
+      <div className="flex gap-2 mt-2">
+        <button
+          onClick={() => onSave(value)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c8922a]/15 border border-[#c8922a]/30 text-[#d4a853] hover:bg-[#c8922a]/25 transition-colors text-xs"
+        >
+          <Save size={12} /> Save
+        </button>
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8 text-[#72708a] hover:text-[#e6e0d4] transition-colors text-xs"
+        >
+          <X size={12} /> Cancel
+        </button>
+      </div>
     </div>
   );
 }
@@ -59,9 +141,17 @@ interface WritingAreaProps {
   generatingText: string;
   isGenerating: boolean;
   onDeleteSegment: (segment: StorySegment) => void;
+  onEditSegment?: (segmentId: string, newContent: string) => void;
 }
 
-export function WritingArea({ segments, generatingText, isGenerating, onDeleteSegment }: WritingAreaProps) {
+export function WritingArea({
+  segments,
+  generatingText,
+  isGenerating,
+  onDeleteSegment,
+  onEditSegment,
+}: WritingAreaProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(segments.length);
 
@@ -95,12 +185,30 @@ export function WritingArea({ segments, generatingText, isGenerating, onDeleteSe
           if (seg.type === 'direction') {
             return <DirectionNote key={seg.id} content={seg.content} />;
           }
+
+          if (editingId === seg.id) {
+            return (
+              <InlineEditBlock
+                key={seg.id}
+                content={seg.content}
+                onSave={(v) => {
+                  onEditSegment?.(seg.id, v);
+                  setEditingId(null);
+                }}
+                onCancel={() => setEditingId(null)}
+              />
+            );
+          }
+
           return (
             <NarrativeBlock
               key={seg.id}
               content={seg.content}
               isNew={idx === segments.length - 1 && !isGenerating}
-              onOptions={() => onDeleteSegment(seg)}
+              onVisualize={() => {}}
+              onBranch={() => {}}
+              onEdit={() => setEditingId(seg.id)}
+              onDelete={() => onDeleteSegment(seg)}
             />
           );
         })}

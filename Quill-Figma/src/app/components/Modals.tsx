@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { X, Plus, Trash2, Wand2, Camera } from 'lucide-react';
+import { X, Plus, Trash2, Wand2, Camera, ImagePlus, User } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -436,6 +436,259 @@ export function DeleteSegmentModal({ segment, onDeleteOnly, onRewindHere, onClos
       <div className="px-5 py-4 border-t border-white/6">
         <Button variant="ghost" onClick={onClose} className="w-full text-[#72708a] hover:text-[#e6e0d4] hover:bg-white/6">
           Cancel
+        </Button>
+      </div>
+    </ModalBackdrop>
+  );
+}
+
+// ─── Comic Modal ──────────────────────────────────────────────────────────
+interface ComicModalProps {
+  onCreate: (title: string) => void;
+  onClose: () => void;
+}
+
+export function ComicModal({ onCreate, onClose }: ComicModalProps) {
+  const [title, setTitle] = useState('');
+  return (
+    <ModalBackdrop onClose={onClose}>
+      <ModalHeader title="New Comic" onClose={onClose} />
+      <div className="px-5 py-4 space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-sm text-[#72708a]">Comic Title</label>
+          <Input
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="Give your comic a title..."
+            autoFocus
+            className="bg-[#1c1c24] border-white/8 text-[#e6e0d4] placeholder:text-[#72708a] focus-visible:ring-[#c8922a]/40"
+          />
+        </div>
+        <p className="text-xs text-[#72708a] leading-relaxed">
+          You can add characters and panels after creating the comic project.
+        </p>
+      </div>
+      <div className="px-5 py-4 border-t border-white/6 flex gap-3">
+        <Button variant="ghost" onClick={onClose} className="flex-1 text-[#72708a] hover:text-[#e6e0d4] hover:bg-white/6">
+          Cancel
+        </Button>
+        <Button
+          onClick={() => { if (title.trim()) { onCreate(title.trim()); onClose(); } }}
+          disabled={!title.trim()}
+          className="flex-1 bg-[#c8922a] hover:bg-[#d4a853] text-[#0c0c11] disabled:opacity-40"
+        >
+          Create Comic
+        </Button>
+      </div>
+    </ModalBackdrop>
+  );
+}
+
+// ─── Panel Modal ──────────────────────────────────────────────────────────
+interface PanelModalProps {
+  characters?: string[];
+  onSave: (data: { sceneDescription: string; dialogue: string; characters: string[] }) => void;
+  onClose: () => void;
+}
+
+export function PanelModal({ characters = [], onSave, onClose }: PanelModalProps) {
+  const [sceneDescription, setSceneDescription] = useState('');
+  const [dialogue, setDialogue] = useState('');
+  const [selectedChars, setSelectedChars] = useState<string[]>([]);
+  const [imagePrompt, setImagePrompt] = useState('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const toggleChar = (c: string) =>
+    setSelectedChars(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+
+  return (
+    <ModalBackdrop onClose={onClose}>
+      <ModalHeader title="Edit Panel" onClose={onClose} />
+      <div className="px-5 py-4 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div className="space-y-1.5">
+          <label className="text-sm text-[#72708a]">Scene Description</label>
+          <Textarea
+            value={sceneDescription}
+            onChange={e => setSceneDescription(e.target.value)}
+            placeholder="Describe the scene, setting, mood, action..."
+            rows={3}
+            className="bg-[#1c1c24] border-white/8 text-[#e6e0d4] placeholder:text-[#72708a] focus-visible:ring-[#c8922a]/40 resize-none"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm text-[#72708a]">Dialogue / Caption <span className="text-[#72708a]/60">(optional)</span></label>
+          <Input
+            value={dialogue}
+            onChange={e => setDialogue(e.target.value)}
+            placeholder='"What did you do?"'
+            className="bg-[#1c1c24] border-white/8 text-[#e6e0d4] placeholder:text-[#72708a] focus-visible:ring-[#c8922a]/40"
+          />
+        </div>
+        {characters.length > 0 && (
+          <div className="space-y-2">
+            <label className="text-sm text-[#72708a]">Characters in scene</label>
+            <div className="flex flex-wrap gap-2">
+              {characters.map(c => (
+                <button
+                  key={c}
+                  onClick={() => toggleChar(c)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all ${
+                    selectedChars.includes(c)
+                      ? 'bg-[#c8922a]/20 border-[#c8922a]/50 text-[#d4a853]'
+                      : 'bg-white/4 border-white/8 text-[#72708a] hover:border-white/15 hover:text-[#e6e0d4]'
+                  }`}
+                >
+                  <User size={10} />
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="space-y-2">
+          <label className="text-sm text-[#72708a]">Image Prompt</label>
+          <div className="flex gap-2">
+            <Textarea
+              value={imagePrompt}
+              onChange={e => setImagePrompt(e.target.value)}
+              placeholder="Describe the visual: style, lighting, composition, colors..."
+              rows={3}
+              className="flex-1 bg-[#1c1c24] border-white/8 text-[#e6e0d4] placeholder:text-[#72708a] focus-visible:ring-[#c8922a]/40 resize-none"
+            />
+          </div>
+          <Button
+            disabled={!imagePrompt.trim()}
+            className="w-full bg-[#c8922a]/15 hover:bg-[#c8922a]/25 border border-[#c8922a]/30 text-[#d4a853] gap-2 disabled:opacity-30"
+          >
+            <ImagePlus size={14} />
+            Generate Image
+          </Button>
+          {/* Image preview area */}
+          <div className="w-full rounded-xl overflow-hidden border border-white/8 bg-[#131318]" style={{ aspectRatio: '3/4' }}>
+            {imagePreview ? (
+              <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ImagePlus size={28} className="text-white/10" />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="px-5 py-4 border-t border-white/6 flex gap-3">
+        <Button variant="ghost" onClick={onClose} className="flex-1 text-[#72708a] hover:text-[#e6e0d4] hover:bg-white/6">
+          Cancel
+        </Button>
+        <Button
+          onClick={() => { onSave({ sceneDescription, dialogue, characters: selectedChars }); onClose(); }}
+          className="flex-1 bg-[#c8922a] hover:bg-[#d4a853] text-[#0c0c11]"
+        >
+          Save Panel
+        </Button>
+      </div>
+    </ModalBackdrop>
+  );
+}
+
+// ─── Character Modal ───────────────────────────────────────────────────────
+interface CharacterModalProps {
+  onSave: (data: { name: string; description: string; stylePrompt: string }) => void;
+  onClose: () => void;
+}
+
+export function CharacterModal({ onSave, onClose }: CharacterModalProps) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [stylePrompt, setStylePrompt] = useState('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <ModalBackdrop onClose={onClose}>
+      <ModalHeader title="Character" onClose={onClose} />
+      <div className="px-5 py-4 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div className="space-y-1.5">
+          <label className="text-sm text-[#72708a]">Name</label>
+          <Input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Character name..."
+            autoFocus
+            className="bg-[#1c1c24] border-white/8 text-[#e6e0d4] placeholder:text-[#72708a] focus-visible:ring-[#c8922a]/40"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm text-[#72708a]">Description</label>
+          <Textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Who is this character? Appearance, personality, role in the story..."
+            rows={4}
+            className="bg-[#1c1c24] border-white/8 text-[#e6e0d4] placeholder:text-[#72708a] focus-visible:ring-[#c8922a]/40 resize-none"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm text-[#72708a]">Reference Image <span className="text-[#72708a]/60">(optional)</span></label>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full h-24 rounded-xl border border-dashed border-white/12 hover:border-[#c8922a]/40 flex items-center justify-center gap-2 text-[#72708a] hover:text-[#c8922a] transition-colors overflow-hidden"
+          >
+            {imagePreview ? (
+              <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+            ) : (
+              <>
+                <User size={16} />
+                <span className="text-xs">Upload reference image</span>
+              </>
+            )}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm text-[#72708a]">Style Prompt</label>
+          <Textarea
+            value={stylePrompt}
+            onChange={e => setStylePrompt(e.target.value)}
+            placeholder="Describe how this character should look in generated images: hair color, eye color, clothing, art style..."
+            rows={3}
+            className="bg-[#1c1c24] border-white/8 text-[#e6e0d4] placeholder:text-[#72708a] focus-visible:ring-[#c8922a]/40 resize-none"
+          />
+          <Button
+            disabled={!stylePrompt.trim() && !description.trim()}
+            className="w-full bg-white/5 border border-white/8 text-[#b8b4aa] hover:bg-white/8 hover:text-[#e6e0d4] gap-2 disabled:opacity-30"
+          >
+            <Wand2 size={14} />
+            Generate style prompt from description
+          </Button>
+          <p className="text-[10px] text-[#72708a]/60 leading-relaxed">
+            This prompt is injected into every panel image for character consistency
+          </p>
+        </div>
+      </div>
+      <div className="px-5 py-4 border-t border-white/6 flex gap-3">
+        <Button variant="ghost" onClick={onClose} className="flex-1 text-[#72708a] hover:text-[#e6e0d4] hover:bg-white/6">
+          Cancel
+        </Button>
+        <Button
+          onClick={() => { if (name.trim()) { onSave({ name: name.trim(), description, stylePrompt }); onClose(); } }}
+          disabled={!name.trim()}
+          className="flex-1 bg-[#c8922a] hover:bg-[#d4a853] text-[#0c0c11] disabled:opacity-40"
+        >
+          Save Character
         </Button>
       </div>
     </ModalBackdrop>

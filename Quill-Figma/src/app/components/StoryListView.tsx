@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Plus, Upload, Settings, Feather, Wifi, WifiOff, AlertCircle } from 'lucide-react';
+import { Download, Trash2, FolderOpen, Settings, Feather, Wifi, WifiOff, AlertCircle, Plus } from 'lucide-react';
 import type { Story, LLMSettings } from '../types';
 
 const GENRE_COLORS: Record<string, string> = {
@@ -21,25 +20,50 @@ function getGenreColor(genre: string) {
 }
 
 function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function LLMStatusBadge({ settings }: { settings: LLMSettings }) {
+function LLMStatusBadge({ settings, onClick }: { settings: LLMSettings; onClick: () => void }) {
   const configured = !!(settings.apiUrl && settings.model);
   return (
-    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border ${
-      configured
-        ? 'text-emerald-400 bg-emerald-400/8 border-emerald-400/20'
-        : 'text-[#72708a] bg-white/4 border-white/8'
-    }`}>
-      {configured ? <Wifi size={11} /> : <WifiOff size={11} />}
-      {configured ? settings.model : 'Not Configured'}
-    </div>
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-all ${
+        configured
+          ? 'text-emerald-400 bg-emerald-400/8 border-emerald-400/20 hover:bg-emerald-400/14'
+          : 'text-[#72708a] bg-white/4 border-white/8 hover:border-white/14'
+      }`}
+    >
+      {configured ? (
+        <>
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+          </span>
+          <Wifi size={11} />
+          LLM: Online
+        </>
+      ) : (
+        <>
+          <WifiOff size={11} />
+          LLM: Not Configured
+        </>
+      )}
+    </button>
   );
 }
 
-function StoryCard({ story, onClick }: { story: Story; onClick: () => void }) {
+function StoryCard({
+  story,
+  onClick,
+  onExport,
+  onDelete,
+}: {
+  story: Story;
+  onClick: () => void;
+  onExport: (e: React.MouseEvent) => void;
+  onDelete: (e: React.MouseEvent) => void;
+}) {
   const wordCount = story.segments
     .filter(s => s.type === 'narrative')
     .reduce((n, s) => n + s.content.split(/\s+/).length, 0);
@@ -49,10 +73,14 @@ function StoryCard({ story, onClick }: { story: Story; onClick: () => void }) {
       onClick={onClick}
       className="group relative w-full text-left p-4 rounded-2xl bg-[#131318] border border-white/6 hover:border-[#c8922a]/30 hover:bg-[#17171e] transition-all duration-200 overflow-hidden"
     >
+      {/* Top amber shimmer on hover */}
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#c8922a]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
       <div className="flex items-start justify-between gap-2 mb-3">
-        <h3 className="text-[#e6e0d4] leading-snug line-clamp-2 pr-1" style={{ fontFamily: "'EB Garamond', serif", fontSize: '1.05rem' }}>
+        <h3
+          className="text-[#e6e0d4] leading-snug line-clamp-2 pr-1"
+          style={{ fontFamily: "'EB Garamond', serif", fontSize: '1.05rem' }}
+        >
           {story.title}
         </h3>
         {story.segments.length === 0 && (
@@ -77,6 +105,24 @@ function StoryCard({ story, onClick }: { story: Story; onClick: () => void }) {
           <span>{formatDate(story.updatedAt)}</span>
         </div>
       </div>
+
+      {/* Card action buttons — revealed on hover */}
+      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={onExport}
+          className="p-1.5 rounded-lg bg-[#1c1c24] border border-white/8 text-[#72708a] hover:text-[#e6e0d4] hover:border-white/16 transition-colors"
+          title="Export story"
+        >
+          <Download size={12} />
+        </button>
+        <button
+          onClick={onDelete}
+          className="p-1.5 rounded-lg bg-[#1c1c24] border border-white/8 text-[#72708a] hover:text-red-400 hover:border-red-400/25 transition-colors"
+          title="Delete story"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
     </button>
   );
 }
@@ -88,9 +134,20 @@ interface StoryListViewProps {
   onNewStory: () => void;
   onImport: () => void;
   onLLMSettings: () => void;
+  onExportStory: (story: Story) => void;
+  onDeleteStory: (id: string) => void;
 }
 
-export function StoryListView({ stories, llmSettings, onOpenStory, onNewStory, onImport, onLLMSettings }: StoryListViewProps) {
+export function StoryListView({
+  stories,
+  llmSettings,
+  onOpenStory,
+  onNewStory,
+  onImport,
+  onLLMSettings,
+  onExportStory,
+  onDeleteStory,
+}: StoryListViewProps) {
   return (
     <div className="min-h-screen bg-[#0c0c11] flex flex-col">
       {/* Header */}
@@ -110,15 +167,16 @@ export function StoryListView({ stories, llmSettings, onOpenStory, onNewStory, o
           <div className="flex items-center gap-2">
             <button
               onClick={onImport}
-              className="p-2 rounded-lg text-[#72708a] hover:text-[#e6e0d4] hover:bg-white/6 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[#72708a] hover:text-[#e6e0d4] hover:bg-white/6 transition-colors text-xs"
               title="Import story"
             >
-              <Upload size={17} />
+              <FolderOpen size={15} />
+              <span className="hidden sm:inline">Import</span>
             </button>
             <button
               onClick={onLLMSettings}
               className="p-2 rounded-lg text-[#72708a] hover:text-[#e6e0d4] hover:bg-white/6 transition-colors"
-              title="LLM settings"
+              title="API settings"
             >
               <Settings size={17} />
             </button>
@@ -127,19 +185,19 @@ export function StoryListView({ stories, llmSettings, onOpenStory, onNewStory, o
       </header>
 
       {/* LLM status */}
-      <div className="px-4 max-w-2xl mx-auto w-full mb-4">
-        <button onClick={onLLMSettings} className="flex items-center gap-2 group">
-          <LLMStatusBadge settings={llmSettings} />
+      <div className="px-4 max-w-2xl mx-auto w-full mb-5">
+        <div className="flex items-center gap-3">
+          <LLMStatusBadge settings={llmSettings} onClick={onLLMSettings} />
           {!llmSettings.apiUrl && (
-            <span className="text-[11px] text-[#72708a]/70 group-hover:text-[#72708a] transition-colors flex items-center gap-1">
+            <span className="text-[11px] text-[#72708a]/70 flex items-center gap-1">
               <AlertCircle size={10} /> Configure to enable AI writing
             </span>
           )}
-        </button>
+        </div>
       </div>
 
       {/* Content */}
-      <main className="flex-1 px-4 pb-8 max-w-2xl mx-auto w-full">
+      <main className="flex-1 px-4 pb-24 max-w-2xl mx-auto w-full">
         {stories.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-16 h-16 rounded-2xl bg-[#1c1c24] border border-white/6 flex items-center justify-center mb-5">
@@ -162,13 +220,19 @@ export function StoryListView({ stories, llmSettings, onOpenStory, onNewStory, o
         ) : (
           <>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm text-[#72708a] uppercase tracking-wider">
+              <h2 className="text-xs text-[#72708a] uppercase tracking-wider">
                 {stories.length} {stories.length === 1 ? 'Story' : 'Stories'}
               </h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {stories.map(story => (
-                <StoryCard key={story.id} story={story} onClick={() => onOpenStory(story.id)} />
+                <StoryCard
+                  key={story.id}
+                  story={story}
+                  onClick={() => onOpenStory(story.id)}
+                  onExport={e => { e.stopPropagation(); onExportStory(story); }}
+                  onDelete={e => { e.stopPropagation(); onDeleteStory(story.id); }}
+                />
               ))}
             </div>
           </>

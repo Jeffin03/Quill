@@ -3,7 +3,8 @@ import type { Story, LLMSettings } from './types';
 import { SAMPLE_STORIES, DEFAULT_LLM_SETTINGS } from './sampleData';
 import { StoryListView } from './components/StoryListView';
 import { StoryWorkspace } from './components/StoryWorkspace';
-import { StoryModal, LLMSettingsModal } from './components/Modals';
+import { StoryModal } from './components/Modals';
+import { APIManagerModal } from './components/APIManagerModal';
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -33,6 +34,22 @@ export default function App() {
   // Modals
   const [showNewStory, setShowNewStory] = useState(false);
   const [showLLMSettings, setShowLLMSettings] = useState(false);
+
+  const exportStory = (story: Story) => {
+    const blob = new Blob([JSON.stringify(story, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${story.title.replace(/[^a-z0-9]/gi, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const deleteStory = (id: string) => {
+    if (window.confirm('Delete this story? This cannot be undone.')) {
+      setStories(prev => prev.filter(s => s.id !== id));
+    }
+  };
 
   // Persist stories
   useEffect(() => {
@@ -115,6 +132,8 @@ export default function App() {
         onNewStory={() => setShowNewStory(true)}
         onImport={handleImport}
         onLLMSettings={() => setShowLLMSettings(true)}
+        onExportStory={exportStory}
+        onDeleteStory={deleteStory}
       />
 
       {showNewStory && (
@@ -125,11 +144,7 @@ export default function App() {
       )}
 
       {showLLMSettings && (
-        <LLMSettingsModal
-          settings={llmSettings}
-          onSave={setLLMSettings}
-          onClose={() => setShowLLMSettings(false)}
-        />
+        <APIManagerModal onClose={() => setShowLLMSettings(false)} />
       )}
     </>
   );
