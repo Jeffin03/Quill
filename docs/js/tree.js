@@ -160,14 +160,20 @@ window.QuillTree = {
   async switchToBranch(messageId) {
     try {
       const story = QuillApp.currentStory;
-      story.activeBranchId = messageId;
 
-      // Update the story cards to the snapshot of this message
+      // Tree nodes are user messages. If this user message has an
+      // assistant response, target the response so both are visible.
       const msg = story.messages.find((m) => m.id === messageId);
+      const children = story.messages.filter((m) => m.parentId === messageId);
+      const aiResponse = children.find((m) => m.role === "assistant");
+      const targetId = aiResponse ? aiResponse.id : messageId;
+
+      story.activeBranchId = targetId;
+
+      // Update cards to the snapshot of this node
       if (msg && msg.cardSnapshot) {
         story.cards = msg.cardSnapshot;
       } else {
-        // Walk up the tree to find the nearest ancestor with a card snapshot
         let ancestor = msg;
         while (ancestor && !ancestor.cardSnapshot) {
           ancestor = story.messages.find((m) => m.id === ancestor?.parentId);
@@ -179,14 +185,14 @@ window.QuillTree = {
       QuillCards.render(story.cards);
 
       await QuillAPI.updateStory(story.id, {
-        activeBranchId: messageId,
+        activeBranchId: targetId,
         cards: story.cards,
       });
 
       // Re-render everything
       const branchMessages = await QuillAPI.getBranchMessages(
         story.id,
-        messageId,
+        targetId,
       );
       QuillChat.render({ ...story, messages: branchMessages });
       this.render(story);
