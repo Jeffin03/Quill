@@ -1010,10 +1010,12 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
-            .register("./sw.js")
+            .register("./sw.js", { updateViaCache: "none" })
             .then((reg) => {
               window.__QUILL_SW_REG = reg;
               console.log("[SW] Registered:", reg.scope);
+              // Force an immediate update check
+              reg.update();
             })
             .catch((err) => console.warn("[SW] Registration failed:", err));
         });

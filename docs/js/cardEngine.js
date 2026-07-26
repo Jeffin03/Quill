@@ -144,14 +144,21 @@ arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_pha
     try {
       parsed = JSON.parse(rawJson);
     } catch (e) {
-      console.warn("[CardEngine] JSON parse failed, raw:", rawJson.slice(0, 250));
+      console.warn("[CardEngine] JSON parse failed, raw:", rawJson.slice(0, 500));
       console.warn("[CardEngine] Parse error:", e.message);
       const repaired = repairJson(rawJson);
       try {
         parsed = JSON.parse(repaired);
       } catch (e2) {
         console.error("[CardEngine] Deep repair failed:", e2.message);
-        console.error("[CardEngine] Repaired:", repaired.slice(0, 350));
+        console.error("[CardEngine] Repaired:", repaired.slice(0, 500));
+        // Show what's at the offending column
+        const colMatch = e2.message.match(/column (\d+)/);
+        if (colMatch) {
+          const col = parseInt(colMatch[1], 10);
+          const ctx = repaired.slice(Math.max(0, col - 10), col + 20);
+          console.error("[CardEngine] Context around column", col + ":", ctx);
+        }
         throw new Error(
           "AI response was not valid JSON and could not be repaired.",
         );
@@ -166,7 +173,10 @@ arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_pha
   function repairJson(str) {
     let s = str.trim();
 
-    // 0. Handle JS object shorthand: {name, age, role} -> {"name":"","age":"","role":""}
+    // 0. Strip trailing commas first so subsequent steps don't trip on them
+    s = s.replace(/,\s*([\}\]])/g, "$1");
+
+    // 1. Handle JS object shorthand: {name, age, role} -> {"name":"","age":"","role":""}
     //    This happens when models copy the field-list notation from the prompt literally.
     s = s.replace(
       /\{\s*([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)\s*\}/g,
@@ -177,16 +187,15 @@ arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_pha
       },
     );
 
-    // 1. Fix unquoted keys (e.g. {title: "..."} -> {"title": "..."})
+    // 2. Fix unquoted keys (e.g. {title: "..."} -> {"title": "..."})
     s = s.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
 
-    // 2. Fix single-quoted values: replace 'value' with "value"
+    // 3. Fix single-quoted values: replace 'value' with "value"
     //    but only around complete tokens (not inside words, avoiding apostrophes)
     s = s.replace(/:\s*'([^']*)'/g, ': "$1"');
 
-    // 2b. Fix bare unquoted string values: "key": bare_word -> "key": "bare_word"
+    // 4. Fix bare unquoted string values: "key": bare_word -> "key": "bare_word"
     //     Values end at , } ] or end-of-string. Skip valid JSON primitives.
-    //     Also skip if the "value" is actually a quoted string start (already valid).
     s = s.replace(
       /(":\s*)([a-zA-Z_][a-zA-Z0-9_ .!?'-]*[a-zA-Z0-9_.!?'-])(?=\s*[,\}\]])/g,
       (match, prefix, value) => {
@@ -195,24 +204,24 @@ arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_pha
       },
     );
 
-    // 3. Insert missing commas between adjacent values
+    // 5. Insert missing commas between adjacent values
     //    "value" "key": -> "value","key":
     s = s.replace(/"\s+"/g, '","');
     //    } "key": -> },"key":
     s = s.replace(/}\s*"/g, '},"');
     //    ] "key": -> ],"key":
     s = s.replace(/]\s*"/g, '],"');
-    //    } unquoted_key: -> },unquoted_key:
-    s = s.replace(/}\s*([a-zA-Z_][a-zA-Z0-9_]*\s*:)/g, '},$1');
+    //    } unquoted_key: -> },"unquoted_key":
+    s = s.replace(/}\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '},"$1":');
 
-    // 4. Remove trailing commas before closing braces/brackets
+    // 6. Remove trailing commas again (new ones may have been created above)
     s = s.replace(/,\s*([\}\]])/g, "$1");
 
-    // 5. Close unclosed strings (close unclosed quotes)
+    // 7. Close unclosed strings (close unclosed quotes)
     const quoteCount = (s.match(/"/g) || []).length;
     if (quoteCount % 2 !== 0) s += '"';
 
-    // 6. Walk the string character-by-character to count only
+    // 8. Walk the string character-by-character to count only
     //    STRUCTURAL braces/brackets (not ones inside string values).
     //    This prevents ] or } inside prose/truncated strings from
     //    throwing off the count.
