@@ -764,6 +764,16 @@ window.QuillApp = {
     });
   },
 
+  // Strip any path from a URL so appending /v1/models doesn't double up
+  _baseHost(url, fallback) {
+    try {
+      const u = new URL(url || fallback);
+      return `${u.protocol}//${u.host}`;
+    } catch {
+      return (url || fallback).replace(/\/+$/, "");
+    }
+  },
+
   _startStepperEdit(entry) {
     this._stepperState = {
       step: 1,
@@ -780,28 +790,19 @@ window.QuillApp = {
     if (!el) return;
     try {
       if (entry.provider === "ollama") {
-        const host = (entry.host || "http://localhost:11434").replace(
-          /\/+$/,
-          "",
-        );
+        const host = this._baseHost(entry.host, "http://localhost:11434");
         const r = await fetch(`${host}/api/tags`, {
           signal: AbortSignal.timeout(3000),
         });
         el.classList.add(r.ok ? "online" : "offline");
       } else if (entry.provider === "lmstudio") {
-        const host = (entry.host || "http://localhost:1234").replace(
-          /\/+$/,
-          "",
-        );
+        const host = this._baseHost(entry.host, "http://localhost:1234");
         const r = await fetch(`${host}/v1/models`, {
           signal: AbortSignal.timeout(3000),
         });
         el.classList.add(r.ok ? "online" : "offline");
       } else if (entry.provider === "comfyui") {
-        const host = (entry.host || "http://localhost:8188").replace(
-          /\/+$/,
-          "",
-        );
+        const host = this._baseHost(entry.host, "http://localhost:8188");
         const r = await fetch(`${host}/system_stats`, {
           signal: AbortSignal.timeout(3000),
         });
@@ -1012,12 +1013,8 @@ window.QuillApp = {
       input.placeholder = "Select an image model...";
     } else if (s.provider === "ollama" || s.provider === "lmstudio") {
       const hostEl = document.getElementById("stepper-host");
-      const host = (
-        hostEl?.value ||
-        (s.provider === "ollama"
-          ? "http://localhost:11434"
-          : "http://localhost:1234")
-      ).replace(/\/+$/, "");
+      const fallback = s.provider === "ollama" ? "http://localhost:11434" : "http://localhost:1234";
+      const host = this._baseHost(hostEl?.value, fallback);
       status.textContent = "Fetching models...";
       status.className = "model-status loading";
       const apiPath = s.provider === "ollama" ? "/api/tags" : "/v1/models";
@@ -1048,10 +1045,7 @@ window.QuillApp = {
       input.placeholder = "Enter model name...";
     } else if (s.provider === "comfyui") {
       const hostEl = document.getElementById("stepper-host");
-      const host = (hostEl?.value || "http://localhost:8188").replace(
-        /\/+$/,
-        "",
-      );
+      const host = this._baseHost(hostEl?.value, "http://localhost:8188");
       status.textContent = "Fetching checkpoints...";
       status.className = "model-status loading";
       try {
