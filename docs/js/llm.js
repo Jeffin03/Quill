@@ -16,15 +16,31 @@ window.QuillLLM = {
   getTextEntry(config) {
     const entries = config.apiEntries || [];
     const routing = config.featureRouting || {};
-    // If a specific entry is routed for 'story', use it
     if (routing.story) {
       const routed = entries.find(
         (e) => e.id === routing.story && e.capabilities?.text,
       );
       if (routed) return routed;
     }
-    // Fallback: first text-capable entry
     return entries.find((e) => e.capabilities?.text);
+  },
+
+  /**
+   * Get all text-capable entries ordered: routed story entry first,
+   * then the rest in their original order. Used for automatic failover.
+   */
+  _getTextCandidates(config) {
+    const entries = [...(config.apiEntries || [])];
+    const routing = config.featureRouting || {};
+    const texts = entries.filter((e) => e.capabilities?.text);
+    if (routing.story) {
+      const idx = texts.findIndex((e) => e.id === routing.story);
+      if (idx > 0) {
+        const [routed] = texts.splice(idx, 1);
+        texts.unshift(routed);
+      }
+    }
+    return texts;
   },
 
   getCardEntry(config) {
@@ -79,31 +95,53 @@ window.QuillLLM = {
 
   streamChat(messages, onChunk, onDone, onError) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-    (async () => {
-      try {
-        const config = await QuillDB.getConfig();
-        const entry = this.getTextEntry(config);
-        if (!entry)
-          throw new Error(
-            "No text-capable API configured. Add one in Settings → API Manager.",
-          );
-        await this._streamChat(
-          entry,
-          messages,
-          onChunk,
-          onDone,
-          controller.signal,
-        );
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          console.error("[QuillLLM] Stream error:", err);
-          onError?.(err);
-        }
-      } finally {
-        clearTimeout(timeoutId);
+    const candidates = [];
+    let currentIdx = 0;
+    let currentTimeoutId = null;
+
+    const tryNext = () => {
+      if (controller.signal.aborted) return;
+      if (currentIdx >= candidates.length) {
+        onError?.(new Error("All API endpoints failed"));
+        return;
       }
+
+      const entry = candidates[currentIdx];
+      currentTimeoutId = setTimeout(() => controller.abort(), 60000);
+
+      this._streamChat(entry, messages, onChunk, onDone, controller.signal)
+        .then(() => clearTimeout(currentTimeoutId))
+        .catch((err) => {
+          clearTimeout(currentTimeoutId);
+          if (err.name !== "AbortError") {
+            currentIdx++;
+            if (currentIdx < candidates.length) {
+              const nextEntry = candidates[currentIdx];
+              QuillToast?.show?.(
+                `${entry.label || entry.provider} unavailable — falling back to ${nextEntry.label || nextEntry.provider}`,
+                "info",
+              );
+            }
+            tryNext();
+          }
+        });
+    };
+
+    (async () => {
+      const config = await QuillDB.getConfig();
+      const all = this._getTextCandidates(config);
+      candidates.push(...all);
+      if (candidates.length === 0) {
+        onError?.(
+          new Error(
+            "No text-capable API configured. Add one in Settings → API Manager.",
+          ),
+        );
+        return;
+      }
+      tryNext();
     })();
+
     return { abort: () => controller.abort() };
   },
 
