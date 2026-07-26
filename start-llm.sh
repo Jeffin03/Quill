@@ -184,16 +184,17 @@ print_box "LLM Endpoint Ready" "Provider: $PROVIDER\nTunnel: $TUNNEL_URL\nAPI: $
 echo ""
 
 # ── QR Code (optional) ────────────────────
+# Note: QR encodes the base tunnel URL only — the app adds /v1/models itself
 
 if command -v qrencode &>/dev/null; then
-  echo "Scan to copy endpoint:"
+  echo "Scan to copy tunnel URL:"
   echo ""
-  qrencode -t utf8 "$LLM_ENDPOINT"
+  qrencode -t utf8 "$TUNNEL_URL"
   echo ""
-  print_box "Scan with phone camera" "Opens the $PROVIDER API endpoint"
+  print_box "Scan with phone camera" "Base URL: $TUNNEL_URL\nApp will append /v1/models automatically"
 else
   echo "Install qrencode for QR code display: yay -S qrencode"
-  echo "URL: $LLM_ENDPOINT"
+  echo "URL: $TUNNEL_URL"
 fi
 
 echo ""
