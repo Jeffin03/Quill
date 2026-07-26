@@ -107,10 +107,10 @@ window.QuillCardEngine = (() => {
       {
         role: "user",
         content:
-          "Output context cards for the following story premise. Respond with a JSON object containing a \"cards\" key. " +
-          "Valid types: character, relationship, world, plot, arc. " +
-          "Each card must have: action (create/update/delete), type, title (short name, 1-4 words), fields (object with keys specific to the type). " +
-          "Generate 3-8 cards.\n\nPremise:\n" +
+          "Output context cards for the following story premise. " +
+          "Rules by type: character (named individuals), relationship (connections between characters), world (settings/factions/locations), plot (events/conflicts/threads), arc (character growth/themes). " +
+          "Each card: action (create), type, title (short name, 1-4 words), fields. " +
+          "Generate 3-8 cards covering at least 3 different types.\n\nPremise:\n" +
           premise,
       },
     ];

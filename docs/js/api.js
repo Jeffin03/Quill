@@ -181,7 +181,7 @@ window.QuillAPI = {
             const cardPrompt = [
               {
                 role: "system",
-                content: `You are a story state extractor. Given a prose excerpt, return ONLY a JSON array of card updates. Use ONLY these actions: "create", "update", "delete". Use ONLY these types: "character", "relationship", "world", "plot", "arc". If nothing changed, return an empty array []. No explanation, no markdown.`,
+                content: `You are a story state extractor. Given a prose excerpt, return ONLY a JSON array of card updates. Actions: create, update, delete. Types: character (named individuals), relationship (connections between people), world (settings/factions), plot (events/threads), arc (growth/themes). If nothing changed, return []. No explanation, no markdown.`,
               },
               {
                 role: "user",
