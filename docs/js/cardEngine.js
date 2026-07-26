@@ -95,23 +95,22 @@ window.QuillCardEngine = (() => {
    */
   async function generateCardsFromPremise(existingCards, premise) {
     const systemPrompt =
-      "You are a JSON-only generator. Given a story premise, output a JSON array of context cards. " +
-      "Never include any text before or after the JSON array.";
-
-    const example =
-      '[{"action":"create","type":"character","title":"Eren","fields":{"name":"Eren","age":"15","appearance":"brown hair","personality":"determined","role":"protagonist","status":"active"}}]';
+      "You are a JSON-only generator. Given a story premise, output a JSON object with a \"cards\" key containing an array of context cards. " +
+      "Your entire response must be valid JSON and nothing else. Example: " +
+      '{"cards":[{"action":"create","type":"character","title":"Eren","fields":{"name":"Eren","age":"15","appearance":"brown hair","personality":"determined","role":"protagonist","status":"active"}}]}';
 
     const messages = [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: premise },
       {
-        role: "assistant",
-        content: example,
+        role: "system",
+        content: systemPrompt,
       },
       {
         role: "user",
         content:
-          "Now do the same for this premise. Output ONLY the JSON array. Types: character, relationship, world, plot, arc. Fields vary by type. Max 8 cards.\n\n" +
+          "Output context cards for the following story premise. Respond with a JSON object containing a \"cards\" key. " +
+          "Valid types: character, relationship, world, plot, arc. " +
+          "Each card must have: action (create/update/delete), type, title, fields (object with keys specific to the type). " +
+          "Generate 3-8 cards.\n\nPremise:\n" +
           premise,
       },
     ];
@@ -119,37 +118,41 @@ window.QuillCardEngine = (() => {
     let rawJson = "";
     try {
       rawJson = await QuillLLM.chat(messages, {
-        temperature: 0.1,
-        maxTokens: 3000,
+        temperature: 0,
+        maxTokens: 4096,
+        responseFormat: "json",
       });
     } catch (err) {
-      console.error("[CardEngine] Auto generation failed:", err);
-      throw err;
+      // If the API rejected response_format (e.g. older Ollama), retry without it
+      if (err.message?.includes("400") || err.message?.includes("response_format")) {
+        console.debug("[CardEngine] JSON mode not supported, retrying without it");
+        try {
+          rawJson = await QuillLLM.chat(messages, {
+            temperature: 0,
+            maxTokens: 4096,
+          });
+        } catch (err2) {
+          console.error("[CardEngine] Auto generation failed:", err2);
+          throw err2;
+        }
+      } else {
+        console.error("[CardEngine] Auto generation failed:", err);
+        throw err;
+      }
     }
 
-    // Strip markdown
+    // Strip markdown fences
     rawJson = rawJson
-      .replace(/```json\n?/g, "")
-      .replace(/```\n?/g, "")
+      .replace(/```json\n?/gi, "")
+      .replace(/```\n?/gi, "")
       .trim();
 
-    // Try to find [{"action" — skip any preamble
-    const actionIdx = rawJson.indexOf('[{"action"');
-    if (actionIdx !== -1) {
-      const endIdx = rawJson.lastIndexOf("]");
-      if (endIdx !== -1 && endIdx > actionIdx) {
-        rawJson = rawJson.substring(actionIdx, endIdx + 1);
-      }
-    } else {
-      // Fallback: find first [ and last ]
-      const startIdx = rawJson.indexOf("[");
-      const endIdx = rawJson.lastIndexOf("]");
-      if (startIdx !== -1 && endIdx !== -1) {
-        const candidate = rawJson.substring(startIdx, endIdx + 1);
-        // Only use it if it actually looks like JSON (starts with [{ or [")
-        if (/^\[\s*[\{\"]/.test(candidate)) {
-          rawJson = candidate;
-        }
+    // If the response isn't pure JSON, try to extract a JSON object { }
+    if (!rawJson.startsWith("{")) {
+      const objStart = rawJson.indexOf("{");
+      const objEnd = rawJson.lastIndexOf("}");
+      if (objStart !== -1 && objEnd > objStart) {
+        rawJson = rawJson.substring(objStart, objEnd + 1);
       }
     }
 
@@ -167,11 +170,17 @@ window.QuillCardEngine = (() => {
         console.error("[CardEngine] Raw:", rawJson.slice(0, 400));
         console.error("[CardEngine] Repaired:", repaired.slice(0, 500));
         throw new Error(
-          "AI response was not valid JSON. The model may not support structured output.",
+          "AI response was not JSON. The model may not support structured output.",
         );
       }
     }
-    return applyCardUpdates(existingCards, parsed);
+
+    // If wrapped in {"cards": [...]} or similar, extract the array
+    const cards = parsed?.cards || parsed;
+    if (!Array.isArray(cards)) {
+      throw new Error("AI response did not contain a cards array.");
+    }
+    return applyCardUpdates(existingCards, cards);
   }
 
   /**

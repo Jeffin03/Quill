@@ -193,7 +193,7 @@ window.QuillChat = {
       () => {
         close();
         const story = QuillApp.currentStory;
-        // Remove the message and its descendants (children in tree)
+        // Compute descendants without mutating in-memory state
         const idsToRemove = new Set([msg.id]);
         const findDescendants = (parentId) => {
           story.messages.forEach((m) => {
@@ -204,8 +204,9 @@ window.QuillChat = {
           });
         };
         findDescendants(msg.id);
-        story.messages = story.messages.filter((m) => !idsToRemove.has(m.id));
-        QuillAPI.updateStory(storyId, { messages: story.messages }).then(() => {
+        const filteredMessages = story.messages.filter((m) => !idsToRemove.has(m.id));
+        QuillAPI.updateStory(storyId, { messages: filteredMessages }).then(() => {
+          story.messages = filteredMessages;
           el.remove();
           QuillTree.render(story);
         }).catch((err) => {
@@ -375,6 +376,7 @@ window.QuillChat = {
 
     // Stream the response
     this.currentStream = QuillAPI.streamChat(story.id, message, {
+      userMessageId: userMsg.id,
       onChunk: (content) => {
         accumulator += content;
 

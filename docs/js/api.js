@@ -78,7 +78,7 @@ window.QuillAPI = {
   /**
    * Stream a chat response from the LLM directly.
    */
-  streamChat(storyId, message, { onChunk, onDone, onError }) {
+  streamChat(storyId, message, { onChunk, onDone, onError, userMessageId }) {
     let abortCurrent = null;
 
     (async () => {
@@ -93,9 +93,9 @@ window.QuillAPI = {
             ? story.messages[story.messages.length - 1].id
             : null);
 
-        // Save user message
+        // Save user message (use chat.js's UUID if provided so DOM and DB match)
         const userMsg = {
-          id: QuillUtils.uuid(),
+          id: userMessageId || QuillUtils.uuid(),
           role: "user",
           content: message,
           parentId: parentId,
@@ -167,6 +167,10 @@ window.QuillAPI = {
           story.activeBranchId = assistantMsg.id;
           story.cards = cards;
           await QuillDB.saveStory(story);
+          // Sync in-memory state so tree/edit/delete use fresh data
+          if (QuillApp.currentStory?.id === story.id) {
+            QuillApp.currentStory = story;
+          }
           onDone?.({ prose, cards, messageId: assistantMsg.id });
         };
 
@@ -278,9 +282,11 @@ window.QuillAPI = {
                   );
                   await finalize(prose, updatedCards);
                 },
+                (err) => { onError?.(err.message); },
               );
               abortCurrent = stream2.abort;
             },
+            (err) => { onError?.(err.message); },
           );
           abortCurrent = stream1.abort;
         } else {
@@ -290,8 +296,6 @@ window.QuillAPI = {
             llmMessages,
             (chunk) => {
               fullContent += chunk;
-              // Pass only the delta chunk — chat.js accumulates on its end.
-              // Sanitization placeholders are restored in onDone.
               onChunk?.(chunk);
             },
             async (fullResponse) => {
@@ -311,6 +315,7 @@ window.QuillAPI = {
                       const updatedCards = await extractCards(prose, userMsg.cardSnapshot);
                       await finalize(prose, updatedCards);
                     },
+                    (err) => { onError?.(err.message); },
                   );
                   abortCurrent = localStream.abort;
                   return;
@@ -328,6 +333,7 @@ window.QuillAPI = {
               );
               await finalize(prose, updatedCards);
             },
+            (err) => { onError?.(err.message); },
           );
           abortCurrent = stream.abort;
         }

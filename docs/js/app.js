@@ -569,6 +569,8 @@ window.QuillApp = {
       this._showSettingsView("overview");
     } catch (err) {
       console.error("Failed to load config:", err);
+      QuillToast?.show?.("Failed to load settings — changes may overwrite existing config", "error");
+      return;
     }
     this.openModal("modal-settings");
   },

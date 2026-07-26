@@ -77,7 +77,7 @@ window.QuillLLM = {
     };
   },
 
-  streamChat(messages, onChunk, onDone) {
+  streamChat(messages, onChunk, onDone, onError) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
     (async () => {
@@ -98,6 +98,7 @@ window.QuillLLM = {
       } catch (err) {
         if (err.name !== "AbortError") {
           console.error("[QuillLLM] Stream error:", err);
+          onError?.(err);
         }
       } finally {
         clearTimeout(timeoutId);
@@ -106,7 +107,7 @@ window.QuillLLM = {
     return { abort: () => controller.abort() };
   },
 
-  streamChatWithEntry(entry, messages, onChunk, onDone) {
+  streamChatWithEntry(entry, messages, onChunk, onDone, onError) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
     (async () => {
@@ -121,6 +122,7 @@ window.QuillLLM = {
       } catch (err) {
         if (err.name !== "AbortError") {
           console.error("[QuillLLM] Stream error:", err);
+          onError?.(err);
         }
       } finally {
         clearTimeout(timeoutId);
@@ -228,22 +230,28 @@ window.QuillLLM = {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
 
+    const body = {
+      model:
+        entry.model ||
+        options.model ||
+        config.recentModels?.[0] ||
+        "gpt-3.5-turbo",
+      messages,
+      max_tokens: options.maxTokens || config.maxTokens || 2048,
+      temperature: options.temperature ?? config.temperature ?? 0.85,
+      stream: false,
+    };
+    // Use JSON mode if requested and not streaming (forces valid JSON output)
+    if (options.responseFormat === "json") {
+      body.response_format = { type: "json_object" };
+    }
+
     try {
       const response = await fetch(url, {
         method: "POST",
         headers,
         signal: controller.signal,
-        body: JSON.stringify({
-          model:
-            entry.model ||
-            options.model ||
-            config.recentModels?.[0] ||
-            "gpt-3.5-turbo",
-          messages,
-          max_tokens: options.maxTokens || config.maxTokens || 2048,
-          temperature: options.temperature ?? config.temperature ?? 0.85,
-          stream: false,
-        }),
+        body: JSON.stringify(body),
       });
 
       clearTimeout(timeoutId);

@@ -173,9 +173,14 @@ window.QuillComic = {
 
   async deletePanel(panelId) {
     if (!confirm("Delete this panel?")) return;
-    await QuillAPI.deletePanel(this.currentComic.id, panelId);
-    this.currentComic = await QuillDB.getComic(this.currentComic.id);
-    this.renderPanels();
+    try {
+      await QuillAPI.deletePanel(this.currentComic.id, panelId);
+      this.currentComic = await QuillDB.getComic(this.currentComic.id);
+      this.renderPanels();
+    } catch (err) {
+      console.error("Failed to delete panel:", err);
+      QuillToast.show("Failed to delete panel", "error");
+    }
   },
 
   closePanelModal() {

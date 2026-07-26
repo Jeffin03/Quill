@@ -89,44 +89,54 @@ window.QuillCharacterDesign = {
     const refImageInput = document.getElementById("input-character-refimage");
     let referenceImage = null;
 
-    if (refImageInput.files?.[0]) {
-      referenceImage = await this.fileToBase64(refImageInput.files[0]);
-    } else if (!id) {
-      referenceImage = null;
-    }
+    try {
+      if (refImageInput.files?.[0]) {
+        referenceImage = await this.fileToBase64(refImageInput.files[0]);
+      } else if (!id) {
+        referenceImage = null;
+      }
 
-    if (!name) {
-      QuillToast.show("Character name is required", "error");
-      return;
-    }
+      if (!name) {
+        QuillToast.show("Character name is required", "error");
+        return;
+      }
 
-    if (id) {
-      const existing = await QuillDB.getCharacter(id);
-      await QuillDB.saveCharacter({
-        ...existing,
-        name,
-        description,
-        referenceImage: referenceImage || existing.referenceImage,
-        stylePrompt,
-      });
-    } else {
-      await QuillAPI.createCharacter({
-        storyId: this.currentStoryId,
-        name,
-        description,
-        referenceImage,
-        stylePrompt,
-      });
-    }
+      if (id) {
+        const existing = await QuillDB.getCharacter(id);
+        await QuillDB.saveCharacter({
+          ...existing,
+          name,
+          description,
+          referenceImage: referenceImage || existing.referenceImage,
+          stylePrompt,
+        });
+      } else {
+        await QuillAPI.createCharacter({
+          storyId: this.currentStoryId,
+          name,
+          description,
+          referenceImage,
+          stylePrompt,
+        });
+      }
 
-    this.closeModal();
-    await this.render();
+      this.closeModal();
+      await this.render();
+    } catch (err) {
+      console.error("Failed to save character:", err);
+      QuillToast.show("Failed to save character", "error");
+    }
   },
 
   async deleteCharacter(id) {
     if (!confirm("Delete this character?")) return;
-    await QuillDB.deleteCharacter(id);
-    await this.render();
+    try {
+      await QuillDB.deleteCharacter(id);
+      await this.render();
+    } catch (err) {
+      console.error("Failed to delete character:", err);
+      QuillToast.show("Failed to delete character", "error");
+    }
   },
 
   fileToBase64(file) {
