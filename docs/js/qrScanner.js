@@ -16,10 +16,12 @@ window.QuillQR = {
       } catch (e) {}
       this.scanner = null;
     }
-    const el = document.getElementById("qr-reader-settings");
-    if (el) {
-      el.classList.add("hidden");
-      el.innerHTML = "";
-    }
+    ["qr-reader-settings", "qr-reader-stepper"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.add("hidden");
+        el.innerHTML = "";
+      }
+    });
   },
 };

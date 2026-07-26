@@ -638,7 +638,7 @@ window.QuillApp = {
   },
 
   async _scanQRForStepperHost() {
-    const readerEl = document.getElementById("qr-reader-settings");
+    const readerEl = document.getElementById("qr-reader-stepper");
     if (!readerEl) return;
 
     if (QuillQR.scanner) {
@@ -648,7 +648,7 @@ window.QuillApp = {
 
     readerEl.classList.remove("hidden");
 
-    QuillQR.scanner = new Html5Qrcode("qr-reader-settings");
+    QuillQR.scanner = new Html5Qrcode("qr-reader-stepper");
 
     try {
       await QuillQR.scanner.start(
@@ -928,6 +928,7 @@ window.QuillApp = {
             <button class="btn btn-ghost btn-sm btn-scan-conn" id="btn-scan-stepper-host" title="Scan QR code to fill Host & Port">QR</button>
           </div>
           <small>${hint}</small>
+          <div id="qr-reader-stepper" class="qr-reader-container hidden"></div>
         </div>
       `;
 
