@@ -91,8 +91,10 @@ window.QuillStoryList = {
           try {
             await QuillAPI.deleteStory(story.id);
             this.loadStories();
+            QuillToast?.show?.(`"${story.title}" deleted`, "info");
           } catch (err) {
             console.error("Failed to delete story:", err);
+            QuillToast?.show?.("Failed to delete story: " + err.message, "error");
           }
         }
       });

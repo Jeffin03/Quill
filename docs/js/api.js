@@ -124,14 +124,15 @@ window.QuillAPI = {
         const historyLimit = 20;
         const recentHistory = history.slice(-historyLimit);
 
-        const llmMessages = [
+        const rawMessages = [
           { role: "system", content: systemPrompt },
           ...recentHistory.map((m) => ({ role: m.role, content: m.content })),
         ];
 
-        // ── Check for uncensored rewrite pipeline ──────
+        // ── Check for rewrite pipeline & sanitization ──
         const config = await QuillDB.getConfig();
         const allEntries = config.apiEntries || [];
+        const textEntry = QuillLLM.getTextEntry(config);
         const remoteEntry = allEntries.find(
           (e) =>
             e.capabilities?.text &&
@@ -144,6 +145,14 @@ window.QuillAPI = {
             (e.provider === "lmstudio" || e.provider === "ollama"),
         );
         const useRewrite = config.uncensorRewrite && remoteEntry && localEntry;
+
+        // Apply sanitization for gated providers (OpenRouter/NIM)
+        const shouldSanitize = config.sanitizeEnabled !== false && textEntry &&
+          QuillSanitize.isGatedProvider(textEntry.provider);
+        if (shouldSanitize) QuillSanitize.reset();
+        const llmMessages = shouldSanitize
+          ? QuillSanitize.sanitizeMessages(rawMessages)
+          : rawMessages;
 
         const finalize = async (prose, cards) => {
           const assistantMsg = {
@@ -198,6 +207,7 @@ window.QuillAPI = {
               "[streamChat] Card extraction failed silently:",
               err.message,
             );
+            QuillToast?.show?.("Card extraction failed: " + err.message, "error");
           } finally {
             QuillCards.setSyncing(false);
           }
@@ -205,12 +215,14 @@ window.QuillAPI = {
         };
 
         if (useRewrite) {
-          // Stage 1: Remote API (buffered)
+          // Stage 1: Remote API (buffered, with sanitization if enabled)
           let remoteContent = "";
+          // llmMessages is already sanitized when shouldSanitize is true
+          const remoteMessages = llmMessages;
 
           const stream1 = QuillLLM.streamChatWithEntry(
             remoteEntry,
-            llmMessages,
+            remoteMessages,
             (chunk) => {
               remoteContent += chunk;
             },
@@ -223,7 +235,15 @@ window.QuillAPI = {
               }
               remoteContent = full || remoteContent;
 
-              // Stage 2: Local rewrite (streamed)
+              // Check for guardrail refusal in remote response
+              if (shouldSanitize && QuillSanitize.isGuardrailRefusal(remoteContent)) {
+                remoteContent = QuillSanitize.restoreText(remoteContent);
+                QuillToast?.show?.("Remote guardrail triggered — rewrite may still work", "info");
+              } else if (shouldSanitize) {
+                remoteContent = QuillSanitize.restoreText(remoteContent);
+              }
+
+              // Stage 2: Local rewrite (streamed, always uses original content)
               const rewriteMessages = [
                 {
                   role: "system",
@@ -264,16 +284,45 @@ window.QuillAPI = {
           );
           abortCurrent = stream1.abort;
         } else {
-          // Original single-API flow
+          // Single-API flow (with optional sanitization)
           let fullContent = "";
           const stream = QuillLLM.streamChat(
             llmMessages,
             (chunk) => {
               fullContent += chunk;
-              onChunk?.(chunk);
+              const visible = shouldSanitize
+                ? QuillSanitize.restoreText(fullContent)
+                : fullContent;
+              onChunk?.(visible);
             },
             async (fullResponse) => {
-              const prose = QuillCardEngine.stripCardBlock(fullResponse);
+              if (shouldSanitize && QuillSanitize.isGuardrailRefusal(fullResponse)) {
+                if (localEntry) {
+                  QuillToast?.show?.("Guardrail triggered — falling back to local model", "info");
+                  let localContent = "";
+                  const localStream = QuillLLM.streamChatWithEntry(
+                    localEntry,
+                    rawMessages,
+                    (chunk) => {
+                      localContent += chunk;
+                      onChunk?.(chunk);
+                    },
+                    async (localResponse) => {
+                      const prose = QuillCardEngine.stripCardBlock(localResponse);
+                      const updatedCards = await extractCards(prose, userMsg.cardSnapshot);
+                      await finalize(prose, updatedCards);
+                    },
+                  );
+                  abortCurrent = localStream.abort;
+                  return;
+                }
+                onError?.("The AI refused this request. Try rephrasing or use a local model.");
+                return;
+              }
+              const response = shouldSanitize
+                ? QuillSanitize.restoreText(fullResponse)
+                : fullResponse;
+              const prose = QuillCardEngine.stripCardBlock(response);
               const updatedCards = await extractCards(
                 prose,
                 userMsg.cardSnapshot,
@@ -306,10 +355,22 @@ window.QuillAPI = {
 
   // ── Timeline Rewind ──────────────────────
 
-  async rewindTimeline(storyId, messageIndex) {
+  async rewindTimeline(storyId, messageId) {
     const story = await QuillDB.getStory(storyId);
     if (!story) throw new Error("Story not found");
-    story.messages = story.messages.slice(0, messageIndex);
+
+    // Tree-aware rewind: keep only ancestors of the target message
+    const msgMap = new Map(story.messages.map((m) => [m.id, m]));
+    const keep = new Set();
+    let currentId = messageId;
+    while (currentId) {
+      keep.add(currentId);
+      const msg = msgMap.get(currentId);
+      currentId = msg?.parentId;
+    }
+    story.messages = story.messages.filter((m) => keep.has(m.id));
+    story.activeBranchId = messageId;
+
     await QuillDB.saveStory(story);
     return story;
   },

@@ -55,21 +55,25 @@ window.QuillUtils = {
   proseToHtml(text) {
     if (!text) return "";
 
+    // Escape HTML first, then apply formatting on the escaped text.
+    // This prevents XSS while allowing safe formatting tags.
+    const safe = this.escapeHtml(text);
+
     // Split into paragraphs on double newlines
-    const paragraphs = text.split(/\n\n+/);
+    const paragraphs = safe.split(/\n\n+/);
 
     return paragraphs
       .map((p) => {
         let html = p.trim();
         if (!html) return "";
 
-        // Blockquotes
-        if (html.startsWith(">")) {
-          const quoteContent = html.replace(/^>\s*/gm, "");
+        // Blockquotes (after HTML escaping, > becomes &gt;)
+        if (html.startsWith("&gt;")) {
+          const quoteContent = html.replace(/^&gt;\s*/gm, "");
           return `<blockquote>${quoteContent}</blockquote>`;
         }
 
-        // Inline formatting
+        // Inline formatting (safe on escaped text, since *, _ are untouched)
         html = html
           .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
           .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")

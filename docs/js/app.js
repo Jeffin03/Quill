@@ -96,6 +96,9 @@ window.QuillApp = {
     safeBind("input-uncensor-rewrite", "change", () =>
       this._saveSettingsDefaults(),
     );
+    safeBind("input-sanitize-enabled", "change", () =>
+      this._saveSettingsDefaults(),
+    );
 
     // Back to stories
     safeBind("btn-back", "click", () => {
@@ -449,13 +452,18 @@ window.QuillApp = {
 
     container.querySelectorAll(".btn-delete-viz").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        const messageId = btn.dataset.messageId;
-        await QuillAPI.deleteVisualization(this.currentStory.id, messageId);
-        const storyMsg = this.currentStory.messages.find(
-          (m) => m.id === messageId,
-        );
-        if (storyMsg) storyMsg.visualization = null;
-        this.renderVisualTimeline();
+        try {
+          const messageId = btn.dataset.messageId;
+          await QuillAPI.deleteVisualization(this.currentStory.id, messageId);
+          const storyMsg = this.currentStory.messages.find(
+            (m) => m.id === messageId,
+          );
+          if (storyMsg) storyMsg.visualization = null;
+          this.renderVisualTimeline();
+        } catch (err) {
+          console.error("Failed to delete visualization:", err);
+          QuillToast.show("Failed to remove visualization", "error");
+        }
       });
     });
   },
@@ -503,8 +511,14 @@ window.QuillApp = {
     container.querySelectorAll(".btn-delete-character").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (!confirm("Delete this character?")) return;
-        await QuillDB.deleteCharacter(btn.dataset.id);
-        this.renderCharacterList();
+        try {
+          await QuillDB.deleteCharacter(btn.dataset.id);
+          this.renderCharacterList();
+          QuillToast.show("Character deleted", "info");
+        } catch (err) {
+          console.error("Failed to delete character:", err);
+          QuillToast.show("Failed to delete character", "error");
+        }
       });
     });
   },
@@ -545,6 +559,8 @@ window.QuillApp = {
       document.getElementById("input-art-style").value = config.artStyle || "";
       document.getElementById("input-uncensor-rewrite").checked =
         !!config.uncensorRewrite;
+      document.getElementById("input-sanitize-enabled").checked =
+        config.sanitizeEnabled !== false;
       this._renderConnectionsList(config.apiEntries || []);
       this._renderFeatureRouting(
         config.apiEntries || [],
@@ -953,18 +969,19 @@ window.QuillApp = {
 
     // If editing, pre-fill values
     if (s.entryId) {
-      const config = QuillAPI.getConfig();
-      config.then((c) => {
-        const entry = (c.apiEntries || []).find((e) => e.id === s.entryId);
-        if (entry) {
-          const labelEl = document.getElementById("stepper-label");
-          if (labelEl) labelEl.value = entry.label || "";
-          const hostEl = document.getElementById("stepper-host");
-          if (hostEl) hostEl.value = entry.host || "";
-          const keyEl = document.getElementById("stepper-apikey");
-          if (keyEl) keyEl.value = entry.apiKey || "";
-        }
-      });
+      QuillAPI.getConfig()
+        .then((c) => {
+          const entry = (c.apiEntries || []).find((e) => e.id === s.entryId);
+          if (entry) {
+            const labelEl = document.getElementById("stepper-label");
+            if (labelEl) labelEl.value = entry.label || "";
+            const hostEl = document.getElementById("stepper-host");
+            if (hostEl) hostEl.value = entry.host || "";
+            const keyEl = document.getElementById("stepper-apikey");
+            if (keyEl) keyEl.value = entry.apiKey || "";
+          }
+        })
+        .catch((err) => console.error("Failed to pre-fill entry:", err));
     }
   },
 
@@ -1244,6 +1261,8 @@ window.QuillApp = {
       artStyle: document.getElementById("input-art-style").value.trim(),
       uncensorRewrite: document.getElementById("input-uncensor-rewrite")
         .checked,
+      sanitizeEnabled: document.getElementById("input-sanitize-enabled")
+        .checked,
     };
     await QuillAPI.updateConfig(data);
   },
@@ -1339,6 +1358,7 @@ window.QuillApp = {
         "atmospheric",
     };
 
+    const previousSettings = { ...(this.currentStory.settings || {}) };
     try {
       await QuillAPI.updateStory(this.currentStory.id, { settings });
       this.currentStory.settings = settings;
@@ -1367,6 +1387,7 @@ window.QuillApp = {
       this.closeModal("modal-story-settings");
       QuillToast.show("Story settings updated!");
     } catch (err) {
+      this.currentStory.settings = previousSettings;
       console.error("Failed to save story settings:", err);
       QuillToast.show("Failed to save settings", "error");
     }
@@ -1415,19 +1436,57 @@ window.QuillApp = {
   },
 
   /**
-   * Check for PWA updates.
+   * Set up PWA update flow. Never requires clearing site data.
+   * When a new SW is detected, shows a toast; on click, activates the
+   * new SW and reloads. IndexedDB is untouched across reloads.
    */
   checkUpdates() {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        window.location.reload();
+    if (!("serviceWorker" in navigator)) return;
+
+    let reloading = false;
+    const safeReload = () => {
+      if (reloading) return;
+      reloading = true;
+      QuillToast.show("Updating app…", "info", 0);
+      setTimeout(() => window.location.reload(), 500);
+    };
+
+    // When a new SW takes control (after user clicked "Update"), reload
+    navigator.serviceWorker.addEventListener("controllerchange", safeReload);
+
+    // Defer to the registration stored by index.html's script
+    const checkReg = () => {
+      const reg = window.__QUILL_SW_REG;
+      if (!reg) { setTimeout(checkReg, 200); return; }
+
+      // If a new SW is already waiting, show the button immediately
+      if (reg.waiting) {
+        QuillToast.show(
+          "Update available — click to apply",
+          "info",
+          0,
+          () => reg.waiting.postMessage({ type: "SKIP_WAITING" }),
+        );
+      }
+
+      // Watch for new SW installs in the future
+      reg.addEventListener("updatefound", () => {
+        const installing = reg.installing;
+        if (!installing) return;
+
+        installing.addEventListener("statechange", () => {
+          if (installing.state === "installed" && navigator.serviceWorker.controller) {
+            QuillToast.show(
+              "Update available — click to apply",
+              "info",
+              0,
+              () => (reg.waiting || installing).postMessage({ type: "SKIP_WAITING" }),
+            );
+          }
+        });
       });
-      navigator.serviceWorker.addEventListener("message", (event) => {
-        if (event.data?.type === "SW_UPDATED") {
-          window.location.reload();
-        }
-      });
-    }
+    };
+    checkReg();
   },
   /**
    * Check if the LLM server is reachable.

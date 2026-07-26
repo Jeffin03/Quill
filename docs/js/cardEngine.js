@@ -22,12 +22,13 @@ window.QuillCardEngine = (() => {
     try {
       return JSON.parse(jsonStr);
     } catch (e) {
-      console.warn("[CardEngine] JSON parse failed, attempting repair...");
+      console.warn("[CardEngine] JSON parse failed, attempting repair...", e.message);
       try {
         const repaired = repairJson(jsonStr);
         return JSON.parse(repaired);
       } catch (e2) {
         console.error("[CardEngine] Failed to repair JSON:", e2.message);
+        QuillToast?.show?.("Failed to parse card updates from AI response", "error");
         return [];
       }
     }
@@ -161,11 +162,12 @@ arc: { title, character, goal, obstacle, current_phase }
   function repairJson(str) {
     let s = str.trim();
 
-    // 1. Fix single quotes to double quotes (naive but effective for most cases)
-    s = s.replace(/'/g, '"');
-
-    // 2. Fix unquoted keys (e.g. {title: "..."} -> {"title": "..."})
+    // 1. Fix unquoted keys (e.g. {title: "..."} -> {"title": "..."})
     s = s.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+
+    // 2. Fix single-quoted values: replace 'value' with "value"
+    //    but only around complete tokens (not inside words, avoiding apostrophes)
+    s = s.replace(/:\s*'([^']*)'/g, ': "$1"');
 
     // 3. Remove trailing commas before closing braces/brackets
     s = s.replace(/,\s*([\}\]])/g, "$1");

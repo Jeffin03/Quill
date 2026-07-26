@@ -79,6 +79,7 @@ window.QuillLLM = {
 
   streamChat(messages, onChunk, onDone) {
     const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
     (async () => {
       try {
         const config = await QuillDB.getConfig();
@@ -97,8 +98,9 @@ window.QuillLLM = {
       } catch (err) {
         if (err.name !== "AbortError") {
           console.error("[QuillLLM] Stream error:", err);
-          onDone?.("");
         }
+      } finally {
+        clearTimeout(timeoutId);
       }
     })();
     return { abort: () => controller.abort() };
@@ -106,6 +108,7 @@ window.QuillLLM = {
 
   streamChatWithEntry(entry, messages, onChunk, onDone) {
     const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
     (async () => {
       try {
         await this._streamChat(
@@ -118,8 +121,9 @@ window.QuillLLM = {
       } catch (err) {
         if (err.name !== "AbortError") {
           console.error("[QuillLLM] Stream error:", err);
-          onDone?.("");
         }
+      } finally {
+        clearTimeout(timeoutId);
       }
     })();
     return { abort: () => controller.abort() };
@@ -188,7 +192,7 @@ window.QuillLLM = {
         }
       }
     } finally {
-      reader.releaseLock();
+      reader?.releaseLock();
     }
 
     onDone?.(fullContent);

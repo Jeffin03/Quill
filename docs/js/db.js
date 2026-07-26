@@ -23,15 +23,12 @@ window.QuillDB = (() => {
       request.onupgradeneeded = (e) => {
         const database = e.target.result;
 
-        // v1: Stories + Settings stores
         if (!database.objectStoreNames.contains("stories")) {
           database.createObjectStore("stories", { keyPath: "id" });
         }
         if (!database.objectStoreNames.contains("settings")) {
           database.createObjectStore("settings", { keyPath: "key" });
         }
-
-        // v2: Characters + Comics stores
         if (!database.objectStoreNames.contains("characters")) {
           database.createObjectStore("characters", { keyPath: "id" });
         }
@@ -42,6 +39,16 @@ window.QuillDB = (() => {
 
       request.onsuccess = (e) => {
         db = e.target.result;
+
+        // Invalidate cached connection if another tab upgrades
+        db.onversionchange = () => {
+          db.close();
+          db = null;
+        };
+        db.onclose = () => {
+          db = null;
+        };
+
         resolve(db);
       };
 
@@ -95,7 +102,7 @@ window.QuillDB = (() => {
   async function getStory(id) {
     const database = await open();
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction("stories", "readonly");
+      const transaction = database.transaction("stories", "readwrite");
       const store = transaction.objectStore("stories");
       const request = store.get(id);
       request.onsuccess = async () => {
@@ -121,9 +128,8 @@ window.QuillDB = (() => {
         }
 
         if (changed) {
-          // We can't save in a readonly transaction, but we'll return the migrated object
-          // and the next 'saveStory' call (which happens often) will persist it.
-          console.log(`[Migration] Story ${id} migrated in-memory.`);
+          story.updatedAt = new Date().toISOString();
+          store.put(story);
         }
 
         resolve(story);
@@ -139,7 +145,35 @@ window.QuillDB = (() => {
   }
 
   async function deleteStory(id) {
-    await tx("stories", "readwrite", (store) => store.delete(id));
+    const database = await open();
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction(["stories", "characters", "comics"], "readwrite");
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+
+      // Delete the story
+      transaction.objectStore("stories").delete(id);
+
+      // Cascade: delete associated characters
+      const charCursor = transaction.objectStore("characters").openCursor();
+      charCursor.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+          if (cursor.value.storyId === id) cursor.delete();
+          cursor.continue();
+        }
+      };
+
+      // Cascade: delete associated comics
+      const comicCursor = transaction.objectStore("comics").openCursor();
+      comicCursor.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+          if (cursor.value.storyId === id) cursor.delete();
+          cursor.continue();
+        }
+      };
+    });
   }
 
   // ── Settings / Config ────────────────────
@@ -159,6 +193,7 @@ window.QuillDB = (() => {
     openrouterFreeModels: [],
     openrouterFreeModelsFetched: null,
     uncensorRewrite: false,
+    sanitizeEnabled: true,
   };
 
   async function getConfig() {
@@ -173,10 +208,21 @@ window.QuillDB = (() => {
   }
 
   async function saveConfig(data) {
-    const existing = await getConfig();
-    const merged = { ...existing, ...data, key: "config" };
-    await tx("settings", "readwrite", (store) => store.put(merged));
-    return merged;
+    const database = await open();
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction("settings", "readwrite");
+      const store = transaction.objectStore("settings");
+      let merged;
+      const getReq = store.get("config");
+      getReq.onsuccess = () => {
+        const existing = getReq.result || DEFAULT_CONFIG;
+        merged = { ...existing, ...data, key: "config" };
+        store.put(merged);
+      };
+      getReq.onerror = () => reject(getReq.error);
+      transaction.oncomplete = () => resolve(merged);
+      transaction.onerror = () => reject(transaction.error);
+    });
   }
 
   // ── Import / Export ──────────────────────
@@ -192,11 +238,14 @@ window.QuillDB = (() => {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${story.title.replace(/[^a-z0-9]/gi, "_")}_quill.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${story.title.replace(/[^a-z0-9]/gi, "_")}_quill.json`;
+      a.click();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   }
 
   /**
@@ -214,7 +263,9 @@ window.QuillDB = (() => {
         try {
           const text = await file.text();
           const story = JSON.parse(text);
-          if (!story.id || !story.title) throw new Error("Invalid story file");
+          if (!story.id || !story.title) throw new Error("Invalid story file: missing id or title");
+          if (story.messages && !Array.isArray(story.messages)) throw new Error("Invalid story file: messages must be an array");
+          if (story.cards && !Array.isArray(story.cards)) throw new Error("Invalid story file: cards must be an array");
           await saveStory(story);
           resolve(story);
         } catch (err) {

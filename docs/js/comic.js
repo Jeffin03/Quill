@@ -184,33 +184,6 @@ window.QuillComic = {
 
   // ── Image Generation ──────────────────────
 
-  buildPanelPrompt(panel) {
-    const config = this.currentComic;
-    const artStyle = config.artStyle || "";
-    const parts = [];
-
-    if (artStyle) parts.push(`Style: ${artStyle}`);
-
-    if (panel.characterIds?.length > 0) {
-      QuillDB.listCharacters(this.currentStoryId)
-        .then((chars) => {
-          const panelChars = chars.filter((c) =>
-            panel.characterIds.includes(c.id),
-          );
-          panelChars.forEach((c) => {
-            if (c.stylePrompt)
-              parts.push(`Character "${c.name}": ${c.stylePrompt}`);
-          });
-        })
-        .catch(() => {});
-    }
-
-    parts.push(`Scene: ${panel.sceneDescription}`);
-    if (panel.dialogue) parts.push(`Dialogue: "${panel.dialogue}"`);
-
-    return parts.join("\n");
-  },
-
   async generatePanelImage(panelId) {
     if (this.generating) return;
     const panel = this.currentComic.panels.find((p) => p.id === panelId);

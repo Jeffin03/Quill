@@ -552,6 +552,19 @@
                   LLM. Requires one remote + one local text connection.</small
                 >
               </div>
+              <div class="form-group" style="margin-top: 8px;">
+                <label class="toggle-pill">
+                  <input type="checkbox" id="input-sanitize-enabled" checked />
+                  <span class="toggle-slider"></span>
+                  Sanitize requests for gated APIs
+                </label>
+                <small
+                  >Replaces trigger terms (copyrighted names, explicit content)
+                  with placeholders before sending to OpenRouter / NVIDIA NIM.
+                  Restored in the response. Falls back to local model if
+                  guardrail still triggers.</small
+                >
+              </div>
             </div>
 
             <div class="alert alert-warning">
@@ -975,9 +988,10 @@
     <!-- Toast Notification System -->
     <div id="toast-container" class="toast-container"></div>
 
-    <!-- Scripts (order matters: db → llm → cardEngine → api → rest) -->
+    <!-- Scripts (order matters: utils → db → sanitize → llm → cardEngine → api → rest) -->
     <script src="./js/utils.js"></script>
     <script src="./js/db.js"></script>
+    <script src="./js/sanitize.js"></script>
     <script src="./js/llm.js"></script>
     <script src="./js/cardEngine.js"></script>
     <script src="./js/qrScanner.js"></script>
@@ -997,7 +1011,10 @@
         window.addEventListener("load", () => {
           navigator.serviceWorker
             .register("./sw.js")
-            .then((reg) => console.log("[SW] Registered:", reg.scope))
+            .then((reg) => {
+              window.__QUILL_SW_REG = reg;
+              console.log("[SW] Registered:", reg.scope);
+            })
             .catch((err) => console.warn("[SW] Registration failed:", err));
         });
       }

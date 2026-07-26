@@ -166,42 +166,14 @@ window.QuillCharacterDesign = {
 
     try {
       const config = await QuillDB.getConfig();
-      const entries = config.apiEntries || [];
       const textEntry =
         QuillLLM.getPromptEntry(config) ||
-        entries.find((e) => e.capabilities?.text);
+        config.apiEntries?.find((e) => e.capabilities?.text);
 
-      let model = textEntry?.model || "nvidia/nemotron-3-super-120b-a12b:free";
-      let baseUrl = "https://openrouter.ai/api/v1";
-      let apiKey = "";
-
-      if (textEntry) {
-        if (textEntry.provider === "openrouter") {
-          baseUrl = "https://openrouter.ai/api/v1";
-          apiKey = textEntry.apiKey || "";
-          // For OpenRouter, prefer a free model if no model specified
-          if (!textEntry.model) {
-            try {
-              const freeModels = await QuillImageGen.fetchFreeModels();
-              const freeText = freeModels.find((m) => !m.id.includes("flux"));
-              if (freeText) model = freeText.id;
-            } catch {
-              /* use default */
-            }
-          }
-        } else if (textEntry.provider === "lmstudio") {
-          baseUrl =
-            (textEntry.host || "http://localhost:1234").replace(/\/+$/, "") +
-            "/v1";
-        } else if (textEntry.provider === "ollama") {
-          baseUrl =
-            (textEntry.host || "http://localhost:11434").replace(/\/+$/, "") +
-            "/v1";
-        } else {
-          baseUrl = (textEntry.host || baseUrl).replace(/\/+$/, "");
-          apiKey = textEntry.apiKey || "";
-        }
-        if (textEntry.model) model = textEntry.model;
+      if (!textEntry) {
+        QuillToast.show("No text-capable API configured", "error");
+        if (field) field.value = "";
+        return;
       }
 
       const messages = [
@@ -209,31 +181,17 @@ window.QuillCharacterDesign = {
         { role: "user", content: userContent },
       ];
 
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: apiKey ? `Bearer ${apiKey}` : "",
-          ...(apiKey ? {} : { "X-Title": "Quill" }),
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          max_tokens: 300,
-          temperature: 0.7,
-        }),
+      const content = await QuillLLM.chatWithEntry(textEntry, messages, {
+        maxTokens: 300,
+        temperature: 0.7,
       });
-
-      if (!response.ok) {
-        const text = await response.text().catch(() => "Unknown error");
-        throw new Error(`API error (${response.status}): ${text}`);
-      }
-
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || "";
       const clean = content.replace(/^["']|["']$/g, "").trim();
-      if (field) field.value = clean;
-      QuillToast.show("Style prompt generated!", "success");
+      if (field) field.value = clean || "";
+      if (clean) {
+        QuillToast.show("Style prompt generated!", "success");
+      } else {
+        QuillToast.show("Generated prompt was empty", "error");
+      }
     } catch (err) {
       QuillToast.show("Failed to generate: " + err.message, "error");
       if (field) field.value = "";

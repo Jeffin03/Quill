@@ -4,7 +4,7 @@
    access and instant loading.
    ══════════════════════════════════════════ */
 
-const CACHE_NAME = 'quill-v2';
+const CACHE_NAME = 'quill-v3';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -14,6 +14,7 @@ const ASSETS_TO_CACHE = [
   './css/cards.css',
   './css/tree.css',
   './js/db.js',
+  './js/sanitize.js',
   './js/llm.js',
   './js/cardEngine.js',
   './js/api.js',
@@ -30,7 +31,7 @@ const ASSETS_TO_CACHE = [
   './manifest.json',
 ];
 
-// Install: pre-cache all assets
+// Install: pre-cache all assets (no auto skipWaiting — page controls the update)
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -38,7 +39,13 @@ self.addEventListener('install', (event) => {
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
-  self.skipWaiting();
+});
+
+// Listen for page requesting the update
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Activate: clean up old caches and notify clients

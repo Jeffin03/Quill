@@ -165,7 +165,9 @@ window.QuillCards = {
       valueInput.type = "text";
       valueInput.value = value;
       valueInput.addEventListener("change", () => {
-        this.updateCard(card.id, { fields: { [key]: valueInput.value } });
+        this.updateCard(card.id, {
+          fields: { ...card.fields, [key]: valueInput.value },
+        });
       });
 
       field.appendChild(keyEl);
@@ -201,6 +203,7 @@ window.QuillCards = {
       this.flashCard(cardId);
     } catch (err) {
       console.error("Failed to update card:", err);
+      QuillToast?.show?.("Failed to update card: " + err.message, "error");
     }
   },
 
@@ -222,6 +225,7 @@ window.QuillCards = {
       this.render(QuillApp.currentStory.cards);
     } catch (err) {
       console.error("Failed to delete card:", err);
+      QuillToast?.show?.("Failed to delete card: " + err.message, "error");
     }
   },
 

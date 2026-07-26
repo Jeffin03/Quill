@@ -43,7 +43,9 @@ window.QuillTree = {
     treeRoot.className = "tree-multiverse";
 
     // Start rendering from the root message
-    const rootId = story.rootMessageId || story.messages[0].id;
+    const rootId = story.rootMessageId ||
+      (story.messages.length > 0 ? story.messages[0].id : null);
+    if (!rootId) return;
     this.renderNode(
       rootId,
       msgMap,
@@ -164,8 +166,17 @@ window.QuillTree = {
       const msg = story.messages.find((m) => m.id === messageId);
       if (msg && msg.cardSnapshot) {
         story.cards = msg.cardSnapshot;
-        QuillCards.render(story.cards);
+      } else {
+        // Walk up the tree to find the nearest ancestor with a card snapshot
+        let ancestor = msg;
+        while (ancestor && !ancestor.cardSnapshot) {
+          ancestor = story.messages.find((m) => m.id === ancestor?.parentId);
+        }
+        if (ancestor?.cardSnapshot) {
+          story.cards = ancestor.cardSnapshot;
+        }
       }
+      QuillCards.render(story.cards);
 
       await QuillAPI.updateStory(story.id, {
         activeBranchId: messageId,
@@ -183,6 +194,7 @@ window.QuillTree = {
       QuillToast.show("Switched timeline");
     } catch (err) {
       console.error("Failed to switch branch:", err);
+      QuillToast?.show?.("Failed to switch timeline: " + err.message, "error");
     }
   },
 

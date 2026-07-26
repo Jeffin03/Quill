@@ -14,6 +14,7 @@ window.QuillChat = {
     this.welcomeEl = document.getElementById("chat-welcome");
     this.input = document.getElementById("chat-input");
     this.sendBtn = document.getElementById("btn-send");
+    this.cardsStarted = false;
 
     // Auto-resize textarea
     this.input.addEventListener("input", () => this.autoResize());
@@ -151,17 +152,18 @@ window.QuillChat = {
 
     const rewindBtn = document.getElementById("btn-rewind-here");
     const deleteBtn = document.getElementById("btn-delete-only");
+    const closeBtn = modal.querySelector(".modal-close");
     const close = () => modal.classList.add("hidden");
 
     // Clone buttons to remove old listeners
     const newRewindBtn = rewindBtn.cloneNode(true);
     const newDeleteBtn = deleteBtn.cloneNode(true);
+    const newCloseBtn = closeBtn.cloneNode(true);
     rewindBtn.replaceWith(newRewindBtn);
     deleteBtn.replaceWith(newDeleteBtn);
+    closeBtn.replaceWith(newCloseBtn);
 
-    modal
-      .querySelector(".modal-close")
-      .addEventListener("click", close, { once: true });
+    newCloseBtn.addEventListener("click", close, { once: true });
     modal.addEventListener(
       "click",
       (e) => {
@@ -174,13 +176,13 @@ window.QuillChat = {
       "click",
       () => {
         close();
-        const msgIndex = QuillApp.currentStory.messages.findIndex(
-          (m) => m.id === msg.id,
-        );
-        QuillAPI.rewindTimeline(storyId, msgIndex).then((updatedStory) => {
+        QuillAPI.rewindTimeline(storyId, msg.id).then((updatedStory) => {
           QuillApp.currentStory = updatedStory;
           this.render(updatedStory);
           QuillTree.render(updatedStory);
+        }).catch((err) => {
+          console.error("Rewind failed:", err);
+          QuillToast?.show?.("Failed to rewind timeline", "error");
         });
       },
       { once: true },
@@ -191,10 +193,24 @@ window.QuillChat = {
       () => {
         close();
         const story = QuillApp.currentStory;
-        story.messages = story.messages.filter((m) => m.id !== msg.id);
+        // Remove the message and its descendants (children in tree)
+        const idsToRemove = new Set([msg.id]);
+        const findDescendants = (parentId) => {
+          story.messages.forEach((m) => {
+            if (m.parentId === parentId && !idsToRemove.has(m.id)) {
+              idsToRemove.add(m.id);
+              findDescendants(m.id);
+            }
+          });
+        };
+        findDescendants(msg.id);
+        story.messages = story.messages.filter((m) => !idsToRemove.has(m.id));
         QuillAPI.updateStory(storyId, { messages: story.messages }).then(() => {
           el.remove();
           QuillTree.render(story);
+        }).catch((err) => {
+          console.error("Delete failed:", err);
+          QuillToast?.show?.("Failed to delete message", "error");
         });
       },
       { once: true },
@@ -422,7 +438,10 @@ window.QuillChat = {
       onError: (error) => {
         this.setSendButtonState("send");
 
-        if (error?.name === "AbortError" || error === "AbortError") {
+        const isAbort = error?.name === "AbortError" ||
+          error === "AbortError" ||
+          (typeof error === "string" && error.includes("abort"));
+        if (isAbort) {
           streamEl.classList.remove("message-streaming");
           if (accumulator.trim()) {
             bubble.innerHTML = QuillUtils.proseToHtml(
@@ -621,6 +640,7 @@ window.QuillChat = {
       this.input.focus();
     } catch (err) {
       console.error("Failed to branch:", err);
+      QuillToast?.show?.("Failed to fork timeline: " + err.message, "error");
     }
   },
 };
