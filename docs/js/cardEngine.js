@@ -94,25 +94,25 @@ window.QuillCardEngine = (() => {
    * Auto-generate cards from a premise string using the LLM.
    */
   async function generateCardsFromPremise(existingCards, premise) {
-    const systemPrompt = `You are a story data extractor. Read the premise below and extract key elements into a JSON array.
+    const systemPrompt =
+      "You are a JSON-only generator. Given a story premise, output a JSON array of context cards. " +
+      "Never include any text before or after the JSON array.";
 
-RULES:
-1. I will repeat: output ONLY a raw JSON array — no explanation, no markdown, no introductory text.
-2. Use ONLY these types with EXACTLY these fields:
-   - character: {"name":"...","age":"...","appearance":"...","personality":"...","role":"...","status":"..."}
-   - relationship: {"person_a":"...","person_b":"...","dynamic":"...","history":"...","tension_level":"..."}
-   - world: {"name":"...","description":"...","atmosphere":"...","rules":"..."}
-   - plot: {"title":"...","summary":"...","status":"...","stakes":"..."}
-   - arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_phase":"..."}
-3. Format each entry as: {"action":"create","type":"...","title":"...","fields":{...}}
-4. Maximum 8 cards. Only extract what is clearly stated.
-5. WARNING: If you include any text outside the JSON array, the program will crash.`;
+    const example =
+      '[{"action":"create","type":"character","title":"Eren","fields":{"name":"Eren","age":"15","appearance":"brown hair","personality":"determined","role":"protagonist","status":"active"}}]';
 
     const messages = [
       { role: "system", content: systemPrompt },
+      { role: "user", content: premise },
+      {
+        role: "assistant",
+        content: example,
+      },
       {
         role: "user",
-        content: `Extract elements from this premise and output ONLY the JSON array (no text before or after):\n\n${premise}\n\n[`,
+        content:
+          "Now do the same for this premise. Output ONLY the JSON array. Types: character, relationship, world, plot, arc. Fields vary by type. Max 8 cards.\n\n" +
+          premise,
       },
     ];
 
@@ -120,41 +120,44 @@ RULES:
     try {
       rawJson = await QuillLLM.chat(messages, {
         temperature: 0.1,
-        maxTokens: 1000,
+        maxTokens: 1500,
       });
     } catch (err) {
       console.error("[CardEngine] Auto generation failed:", err);
       throw err;
     }
 
-    // Prepend "[" if the model didn't continue from the prefix (some models
-    // strip the prefix and start fresh)
-    rawJson = rawJson.trim();
-    if (!rawJson.startsWith("[")) {
-      rawJson = "[" + rawJson;
-    }
-
-    // Strip markdown and extract JSON array
+    // Strip markdown
     rawJson = rawJson
       .replace(/```json\n?/g, "")
       .replace(/```\n?/g, "")
       .trim();
-    const startIdx = rawJson.indexOf("[");
-    const endIdx = rawJson.lastIndexOf("]");
-    if (startIdx !== -1 && endIdx !== -1) {
-      rawJson = rawJson.substring(startIdx, endIdx + 1);
+
+    // Try to find [{"action" — skip any preamble
+    const actionIdx = rawJson.indexOf('[{"action"');
+    if (actionIdx !== -1) {
+      const endIdx = rawJson.lastIndexOf("]");
+      if (endIdx !== -1 && endIdx > actionIdx) {
+        rawJson = rawJson.substring(actionIdx, endIdx + 1);
+      }
     } else {
-      console.warn("[CardEngine] No JSON array found in response, raw:", rawJson.slice(0, 300));
-      throw new Error(
-        "AI returned no JSON at all. Your model may not support structured output — try a different model.",
-      );
+      // Fallback: find first [ and last ]
+      const startIdx = rawJson.indexOf("[");
+      const endIdx = rawJson.lastIndexOf("]");
+      if (startIdx !== -1 && endIdx !== -1) {
+        const candidate = rawJson.substring(startIdx, endIdx + 1);
+        // Only use it if it actually looks like JSON (starts with [{ or [")
+        if (/^\[\s*[\{\"]/.test(candidate)) {
+          rawJson = candidate;
+        }
+      }
     }
 
     let parsed;
     try {
       parsed = JSON.parse(rawJson);
     } catch (e) {
-      console.warn("[CardEngine] JSON parse failed, raw:", rawJson.slice(0, 500));
+      console.warn("[CardEngine] Raw response:", rawJson.slice(0, 400));
       console.warn("[CardEngine] Parse error:", e.message);
       const repaired = repairJson(rawJson);
       try {
@@ -162,14 +165,8 @@ RULES:
       } catch (e2) {
         console.error("[CardEngine] Deep repair failed:", e2.message);
         console.error("[CardEngine] Repaired:", repaired.slice(0, 500));
-        const colMatch = e2.message.match(/column (\d+)/);
-        if (colMatch) {
-          const col = parseInt(colMatch[1], 10);
-          const ctx = repaired.slice(Math.max(0, col - 10), col + 20);
-          console.error("[CardEngine] Context around column", col + ":", ctx);
-        }
         throw new Error(
-          "AI response was not valid JSON and could not be repaired.",
+          "AI response was not valid JSON. The model may not support structured output.",
         );
       }
     }
