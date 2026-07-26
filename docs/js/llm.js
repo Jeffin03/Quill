@@ -55,13 +55,13 @@ window.QuillLLM = {
     if (!entry) return null;
     if (entry.provider === "lmstudio") {
       return {
-        baseUrl: entry.host?.replace(/\/+$/, "") || "http://localhost:1234",
+        baseUrl: (entry.host?.replace(/\/+$/, "") || "http://localhost:1234") + "/v1",
         apiKey: "",
       };
     }
     if (entry.provider === "ollama") {
       return {
-        baseUrl: entry.host?.replace(/\/+$/, "") || "http://localhost:11434/v1",
+        baseUrl: (entry.host?.replace(/\/+$/, "") || "http://localhost:11434") + "/v1",
         apiKey: "",
       };
     }

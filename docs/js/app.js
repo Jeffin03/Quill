@@ -1454,28 +1454,19 @@ window.QuillApp = {
         return;
       }
 
-      let baseUrl = "";
-      if (textEntry.provider === "openrouter") {
-        baseUrl = "https://openrouter.ai/api";
-      } else if (textEntry.provider === "lmstudio") {
-        baseUrl = (textEntry.host || "http://localhost:1234").replace(
-          /\/+$/,
-          "",
-        );
-      } else if (textEntry.provider === "ollama") {
-        baseUrl = (textEntry.host || "http://localhost:11434").replace(
-          /\/+$/,
-          "",
-        );
-      } else if (textEntry.provider === "comfyui") {
-        baseUrl = (textEntry.host || "http://localhost:8188").replace(
-          /\/+$/,
-          "",
-        );
-      } else {
-        baseUrl = (textEntry.host || "").replace(/\/+$/, "");
-      }
-      if (!baseUrl) {
+      const host = this._baseHost(
+        textEntry.host,
+        textEntry.provider === "ollama"
+          ? "http://localhost:11434"
+          : textEntry.provider === "lmstudio"
+            ? "http://localhost:1234"
+            : textEntry.provider === "comfyui"
+              ? "http://localhost:8188"
+              : textEntry.provider === "openrouter"
+                ? "https://openrouter.ai"
+                : "",
+      );
+      if (!host) {
         if (statusEl) statusEl.className = "connection-status offline";
         if (homeStatusEl) {
           homeStatusEl.className = "connection-status-pill offline";
@@ -1484,11 +1475,20 @@ window.QuillApp = {
         return;
       }
 
+      const apiPath =
+        textEntry.provider === "ollama"
+          ? "/api/tags"
+          : textEntry.provider === "lmstudio"
+            ? "/v1/models"
+            : textEntry.provider === "comfyui"
+              ? "/system_stats"
+              : "/models";
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2000);
 
       try {
-        const resp = await fetch(baseUrl + "/models", {
+        const resp = await fetch(host + apiPath, {
           method: "GET",
           signal: controller.signal,
         });

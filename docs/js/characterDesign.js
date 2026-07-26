@@ -190,10 +190,9 @@ window.QuillCharacterDesign = {
             }
           }
         } else if (textEntry.provider === "lmstudio") {
-          baseUrl = (textEntry.host || "http://localhost:1234").replace(
-            /\/+$/,
-            "",
-          );
+          baseUrl =
+            (textEntry.host || "http://localhost:1234").replace(/\/+$/, "") +
+            "/v1";
         } else if (textEntry.provider === "ollama") {
           baseUrl =
             (textEntry.host || "http://localhost:11434").replace(/\/+$/, "") +
