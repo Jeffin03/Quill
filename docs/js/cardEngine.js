@@ -140,20 +140,24 @@ arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_pha
       rawJson = rawJson.substring(startIdx, endIdx + 1);
     }
 
+    let parsed;
     try {
-      return applyCardUpdates(existingCards, JSON.parse(rawJson));
+      parsed = JSON.parse(rawJson);
     } catch (e) {
-      console.warn("[CardEngine] JSON parse failed, attempting deep repair...");
+      console.warn("[CardEngine] JSON parse failed, raw:", rawJson.slice(0, 250));
+      console.warn("[CardEngine] Parse error:", e.message);
+      const repaired = repairJson(rawJson);
       try {
-        const repaired = repairJson(rawJson);
-        return applyCardUpdates(existingCards, JSON.parse(repaired));
+        parsed = JSON.parse(repaired);
       } catch (e2) {
         console.error("[CardEngine] Deep repair failed:", e2.message);
+        console.error("[CardEngine] Repaired:", repaired.slice(0, 350));
         throw new Error(
           "AI response was not valid JSON and could not be repaired.",
         );
       }
     }
+    return applyCardUpdates(existingCards, parsed);
   }
 
   /**
@@ -182,29 +186,53 @@ arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_pha
 
     // 2b. Fix bare unquoted string values: "key": bare_word -> "key": "bare_word"
     //     Values end at , } ] or end-of-string. Skip valid JSON primitives.
+    //     Also skip if the "value" is actually a quoted string start (already valid).
     s = s.replace(
-      /(":\s*)([a-zA-Z_][a-zA-Z0-9_ .!?'-]*[a-zA-Z0-9_.!?'-])/g,
+      /(":\s*)([a-zA-Z_][a-zA-Z0-9_ .!?'-]*[a-zA-Z0-9_.!?'-])(?=\s*[,\}\]])/g,
       (match, prefix, value) => {
         if (/^(true|false|null|\d+\.?\d*)$/.test(value)) return match;
         return prefix + '"' + value + '"';
       },
     );
 
-    // 3. Remove trailing commas before closing braces/brackets
+    // 3. Insert missing commas between adjacent values
+    //    "value" "key": -> "value","key":
+    s = s.replace(/"\s+"/g, '","');
+    //    } "key": -> },"key":
+    s = s.replace(/}\s*"/g, '},"');
+    //    ] "key": -> ],"key":
+    s = s.replace(/]\s*"/g, '],"');
+    //    } unquoted_key: -> },unquoted_key:
+    s = s.replace(/}\s*([a-zA-Z_][a-zA-Z0-9_]*\s*:)/g, '},$1');
+
+    // 4. Remove trailing commas before closing braces/brackets
     s = s.replace(/,\s*([\}\]])/g, "$1");
 
-    // 4. Handle truncated strings (close unclosed quotes)
+    // 5. Close unclosed strings (close unclosed quotes)
     const quoteCount = (s.match(/"/g) || []).length;
     if (quoteCount % 2 !== 0) s += '"';
 
-    // 5. Close unclosed objects/arrays
-    const openBraces = (s.match(/\{/g) || []).length;
-    const closeBraces = (s.match(/\}/g) || []).length;
-    for (let i = 0; i < openBraces - closeBraces; i++) s += "}";
-
-    const openBrackets = (s.match(/\[/g) || []).length;
-    const closeBrackets = (s.match(/\]/g) || []).length;
-    for (let i = 0; i < openBrackets - closeBrackets; i++) s += "]";
+    // 6. Walk the string character-by-character to count only
+    //    STRUCTURAL braces/brackets (not ones inside string values).
+    //    This prevents ] or } inside prose/truncated strings from
+    //    throwing off the count.
+    let inString = false;
+    let structOpenBraces = 0;
+    let structCloseBraces = 0;
+    let structOpenBrackets = 0;
+    let structCloseBrackets = 0;
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      if (ch === '\\') { i++; continue; } // skip escaped char (e.g. \")
+      if (ch === '"') inString = !inString;
+      if (inString) continue;
+      if (ch === '{') structOpenBraces++;
+      if (ch === '}') structCloseBraces++;
+      if (ch === '[') structOpenBrackets++;
+      if (ch === ']') structCloseBrackets++;
+    }
+    for (let i = 0; i < structOpenBraces - structCloseBraces; i++) s += "}";
+    for (let i = 0; i < structOpenBrackets - structCloseBrackets; i++) s += "]";
 
     return s;
   }
