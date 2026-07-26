@@ -1420,14 +1420,12 @@ window.QuillApp = {
   checkUpdates() {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.addEventListener("controllerchange", () => {
-        QuillToast.show(
-          "New version available! Refresh to update.",
-          "info",
-          0,
-          () => {
-            window.location.reload();
-          },
-        );
+        window.location.reload();
+      });
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (event.data?.type === "SW_UPDATED") {
+          window.location.reload();
+        }
       });
     }
   },
