@@ -393,7 +393,7 @@ window.QuillAPI = {
     const card = {
       id: QuillUtils.uuid(),
       type: data.type || "world",
-      title: data.title || "Untitled Card",
+      title: data.title?.trim() || "Untitled Card",
       fields: data.fields || {},
       lastUpdated: new Date().toISOString(),
     };

@@ -56,7 +56,7 @@ window.QuillCardEngine = (() => {
           cards.push({
             id: QuillUtils.uuid(),
             type: update.type || "world",
-            title: update.title || "Untitled Card",
+            title: update.title?.trim() || "Untitled Card",
             fields: update.fields || {},
             lastUpdated: new Date().toISOString(),
           });
@@ -109,7 +109,7 @@ window.QuillCardEngine = (() => {
         content:
           "Output context cards for the following story premise. Respond with a JSON object containing a \"cards\" key. " +
           "Valid types: character, relationship, world, plot, arc. " +
-          "Each card must have: action (create/update/delete), type, title, fields (object with keys specific to the type). " +
+          "Each card must have: action (create/update/delete), type, title (short name, 1-4 words), fields (object with keys specific to the type). " +
           "Generate 3-8 cards.\n\nPremise:\n" +
           premise,
       },
