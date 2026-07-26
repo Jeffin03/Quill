@@ -290,10 +290,9 @@ window.QuillAPI = {
             llmMessages,
             (chunk) => {
               fullContent += chunk;
-              const visible = shouldSanitize
-                ? QuillSanitize.restoreText(fullContent)
-                : fullContent;
-              onChunk?.(visible);
+              // Pass only the delta chunk — chat.js accumulates on its end.
+              // Sanitization placeholders are restored in onDone.
+              onChunk?.(chunk);
             },
             async (fullResponse) => {
               if (shouldSanitize && QuillSanitize.isGuardrailRefusal(fullResponse)) {
