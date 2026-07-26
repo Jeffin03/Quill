@@ -101,11 +101,11 @@ RULES:
 2. No markdown, no code blocks, no explanation.
 3. Use ONLY these types with EXACTLY these fields:
 
-character: { name, age, appearance, personality, role, status }
-relationship: { person_a, person_b, dynamic, history, tension_level }
-world: { name, description, atmosphere, rules }
-plot: { title, summary, status, stakes }
-arc: { title, character, goal, obstacle, current_phase }
+character: {"name":"...","age":"...","appearance":"...","personality":"...","role":"...","status":"..."}
+relationship: {"person_a":"...","person_b":"...","dynamic":"...","history":"...","tension_level":"..."}
+world: {"name":"...","description":"...","atmosphere":"...","rules":"..."}
+plot: {"title":"...","summary":"...","status":"...","stakes":"..."}
+arc: {"title":"...","character":"...","goal":"...","obstacle":"...","current_phase":"..."}
 
 4. Format: [{"action":"create","type":"...","title":"...","fields":{...}}]
 5. Maximum 8 cards. Only extract what is clearly stated.`;
@@ -162,12 +162,33 @@ arc: { title, character, goal, obstacle, current_phase }
   function repairJson(str) {
     let s = str.trim();
 
+    // 0. Handle JS object shorthand: {name, age, role} -> {"name":"","age":"","role":""}
+    //    This happens when models copy the field-list notation from the prompt literally.
+    s = s.replace(
+      /\{\s*([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)\s*\}/g,
+      (match, inner) => {
+        const keys = inner.split(",").map((k) => k.trim()).filter(Boolean);
+        if (keys.length === 0) return match;
+        return "{" + keys.map((k) => `"${k}":""`).join(",") + "}";
+      },
+    );
+
     // 1. Fix unquoted keys (e.g. {title: "..."} -> {"title": "..."})
     s = s.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
 
     // 2. Fix single-quoted values: replace 'value' with "value"
     //    but only around complete tokens (not inside words, avoiding apostrophes)
     s = s.replace(/:\s*'([^']*)'/g, ': "$1"');
+
+    // 2b. Fix bare unquoted string values: "key": bare_word -> "key": "bare_word"
+    //     Values end at , } ] or end-of-string. Skip valid JSON primitives.
+    s = s.replace(
+      /(":\s*)([a-zA-Z_][a-zA-Z0-9_ .!?'-]*[a-zA-Z0-9_.!?'-])/g,
+      (match, prefix, value) => {
+        if (/^(true|false|null|\d+\.?\d*)$/.test(value)) return match;
+        return prefix + '"' + value + '"';
+      },
+    );
 
     // 3. Remove trailing commas before closing braces/brackets
     s = s.replace(/,\s*([\}\]])/g, "$1");
