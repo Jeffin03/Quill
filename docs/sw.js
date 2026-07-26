@@ -4,7 +4,7 @@
    access and instant loading.
    ══════════════════════════════════════════ */
 
-const CACHE_NAME = 'quill-v1';
+const CACHE_NAME = 'quill-v2';
 
 const ASSETS_TO_CACHE = [
   './',
