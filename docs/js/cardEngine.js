@@ -120,7 +120,7 @@ window.QuillCardEngine = (() => {
     try {
       rawJson = await QuillLLM.chat(messages, {
         temperature: 0.1,
-        maxTokens: 1500,
+        maxTokens: 3000,
       });
     } catch (err) {
       console.error("[CardEngine] Auto generation failed:", err);
@@ -157,13 +157,14 @@ window.QuillCardEngine = (() => {
     try {
       parsed = JSON.parse(rawJson);
     } catch (e) {
-      console.warn("[CardEngine] Raw response:", rawJson.slice(0, 400));
-      console.warn("[CardEngine] Parse error:", e.message);
+      console.debug("[CardEngine] Initial parse failed, attempting repair:", e.message);
       const repaired = repairJson(rawJson);
       try {
         parsed = JSON.parse(repaired);
+        console.debug("[CardEngine] Repair succeeded (likely truncated response)");
       } catch (e2) {
         console.error("[CardEngine] Deep repair failed:", e2.message);
+        console.error("[CardEngine] Raw:", rawJson.slice(0, 400));
         console.error("[CardEngine] Repaired:", repaired.slice(0, 500));
         throw new Error(
           "AI response was not valid JSON. The model may not support structured output.",
