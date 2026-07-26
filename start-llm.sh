@@ -1,13 +1,14 @@
 #!/bin/bash
 # ══════════════════════════════════════════
 # Quill — LLM + Tunnel Launcher
-# Starts Ollama with CORS enabled and
-# opens a Cloudflare tunnel to expose it.
+# Starts Ollama or LM Studio with CORS enabled
+# and opens a Cloudflare tunnel to expose it.
 # ══════════════════════════════════════════
 
 TUNNEL_LOG="/tmp/quill_tunnel.log"
-OLLAMA_PID=""
+LLM_PID=""
 TUNNEL_PID=""
+LLM_PORT=""
 
 # ── Helpers ────────────────────────────────
 
@@ -46,13 +47,25 @@ print_error() {
 cleanup() {
   echo ""
   echo "Shutting down..."
-  [ -n "$OLLAMA_PID" ] && kill "$OLLAMA_PID" 2>/dev/null
+  [ -n "$LLM_PID" ] && kill "$LLM_PID" 2>/dev/null
   [ -n "$TUNNEL_PID" ] && kill "$TUNNEL_PID" 2>/dev/null
   rm -f "$TUNNEL_LOG"
   exit 0
 }
 
 trap cleanup SIGINT SIGTERM
+
+# ── Pick provider ──────────────────────────
+
+echo ""
+echo "Pick your LLM backend:"
+echo ""
+select PROVIDER in "ollama" "lm-studio"; do
+  case $PROVIDER in
+    ollama )   LLM_PORT=11434; break;;
+    lm-studio ) LLM_PORT=1234;  break;;
+  esac
+done
 
 # ── Check dependencies ─────────────────────
 
@@ -62,10 +75,20 @@ echo ""
 
 MISSING=0
 
-if ! command -v ollama &>/dev/null; then
-  print_error "ollama not found" "Install: https://ollama.com/download\nOr: yay -S ollama"
-  MISSING=1
-fi
+case "$PROVIDER" in
+  ollama )
+    if ! command -v ollama &>/dev/null; then
+      print_error "ollama not found" "Install: https://ollama.com/download\nOr: yay -S ollama"
+      MISSING=1
+    fi
+    ;;
+  lm-studio )
+    if ! command -v lms &>/dev/null; then
+      print_error "lms (LM Studio CLI) not found" "Install LM Studio: https://lmstudio.ai\nThen run: lms bootstrap"
+      MISSING=1
+    fi
+    ;;
+esac
 
 if ! command -v cloudflared &>/dev/null; then
   print_error "cloudflared not found" "Install: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/\nOr: yay -S cloudflared"
@@ -78,35 +101,40 @@ if [ "$MISSING" -eq 1 ]; then
   exit 1
 fi
 
-print_box "Dependencies OK" "ollama: $(command -v ollama)\ncloudflared: $(command -v cloudflared)"
+print_box "Dependencies OK" "provider: $PROVIDER\ncloudflared: $(command -v cloudflared)"
 echo ""
 
-# ── Start Ollama ───────────────────────────
+# ── Start provider ─────────────────────────
 
-echo "Starting Ollama (CORS enabled)..."
-
-# Kill any existing Ollama instance
-sudo killall ollama 2>/dev/null
-pkill -f "ollama serve" 2>/dev/null
-sleep 2
-
-OLLAMA_HOST=0.0.0.0:11434 OLLAMA_ORIGINS="*" ollama serve &
-OLLAMA_PID=$!
-sleep 3
-
-# Verify Ollama is running
-if ! kill -0 "$OLLAMA_PID" 2>/dev/null; then
-  print_error "Ollama failed to start" "Check if port 11434 is already in use.\nRun: sudo lsof -i :11434"
-  exit 1
-fi
-
-# Quick health check
-if ! curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
-  print_error "Ollama not responding" "Server started but health check failed.\nCheck: curl http://localhost:11434/api/tags"
-  exit 1
-fi
-
-print_box "Ollama Running" "PID: $OLLAMA_PID\nEndpoint: http://localhost:11434"
+case "$PROVIDER" in
+  ollama )
+    echo "Starting Ollama (CORS enabled)..."
+    sudo killall ollama 2>/dev/null
+    pkill -f "ollama serve" 2>/dev/null
+    sleep 2
+    OLLAMA_HOST=0.0.0.0:$LLM_PORT OLLAMA_ORIGINS="*" ollama serve &
+    LLM_PID=$!
+    sleep 3
+    if ! kill -0 "$LLM_PID" 2>/dev/null; then
+      print_error "Ollama failed to start" "Check if port $LLM_PORT is already in use.\nRun: sudo lsof -i :$LLM_PORT"
+      exit 1
+    fi
+    if ! curl -s http://localhost:$LLM_PORT/api/tags >/dev/null 2>&1; then
+      print_error "Ollama not responding" "Server started but health check failed.\nCheck: curl http://localhost:$LLM_PORT/api/tags"
+      exit 1
+    fi
+    print_box "Ollama Running" "PID: $LLM_PID\nEndpoint: http://localhost:$LLM_PORT"
+    ;;
+  lm-studio )
+    echo "Checking LM Studio server (start it from the GUI first)..."
+    sleep 2
+    if ! curl -s http://localhost:$LLM_PORT/v1/models >/dev/null 2>&1; then
+      print_error "LM Studio not responding" "Open LM Studio GUI, enable the server (port $LLM_PORT), then re-run.\nVerify with: curl http://localhost:$LLM_PORT/v1/models"
+      exit 1
+    fi
+    print_box "LM Studio Running" "Endpoint: http://localhost:$LLM_PORT"
+    ;;
+esac
 echo ""
 
 # ── Start Cloudflare tunnel ────────────────
@@ -115,7 +143,7 @@ echo "Starting Cloudflare tunnel..."
 
 rm -f "$TUNNEL_LOG"
 systemd-inhibit --why="Quill Writing Session" --mode=block \
-  cloudflared tunnel --url http://localhost:11434 --proxy-connect-timeout 300s \
+  cloudflared tunnel --url http://localhost:$LLM_PORT --proxy-connect-timeout 300s \
   > "$TUNNEL_LOG" 2>&1 &
 TUNNEL_PID=$!
 
@@ -152,7 +180,7 @@ fi
 LLM_ENDPOINT="$TUNNEL_URL/v1"
 
 echo ""
-print_box "LLM Endpoint Ready" "Tunnel: $TUNNEL_URL\nAPI: $LLM_ENDPOINT\n\nPaste this in Quill Settings -> Ollama"
+print_box "LLM Endpoint Ready" "Provider: $PROVIDER\nTunnel: $TUNNEL_URL\nAPI: $LLM_ENDPOINT\n\nPaste this in Quill Settings"
 echo ""
 
 # ── QR Code (optional) ────────────────────
@@ -162,7 +190,7 @@ if command -v qrencode &>/dev/null; then
   echo ""
   qrencode -t utf8 "$LLM_ENDPOINT"
   echo ""
-  print_box "Scan with phone camera" "Opens the Ollama API endpoint"
+  print_box "Scan with phone camera" "Opens the $PROVIDER API endpoint"
 else
   echo "Install qrencode for QR code display: yay -S qrencode"
   echo "URL: $LLM_ENDPOINT"

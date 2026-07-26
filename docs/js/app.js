@@ -637,6 +637,41 @@ window.QuillApp = {
     entries.forEach((e) => this._checkConnectionStatus(e));
   },
 
+  async _scanQRForStepperHost() {
+    const readerEl = document.getElementById("qr-reader-settings");
+    if (!readerEl) return;
+
+    if (QuillQR.scanner) {
+      await QuillQR.stopScanner();
+      return;
+    }
+
+    readerEl.classList.remove("hidden");
+
+    QuillQR.scanner = new Html5Qrcode("qr-reader-settings");
+
+    try {
+      await QuillQR.scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+        async (decodedText) => {
+          await QuillQR.stopScanner();
+          const hostEl = document.getElementById("stepper-host");
+          if (hostEl) {
+            hostEl.value = decodedText;
+            hostEl.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+          QuillToast.show(`Scanned: ${decodedText}`, "success");
+        },
+        () => {},
+      );
+    } catch (err) {
+      console.error("Camera error:", err);
+      QuillToast.show("Could not access camera. Check permissions.", "error");
+      await QuillQR.stopScanner();
+    }
+  },
+
   async _scanQRForEntry(entry) {
     const readerEl = document.getElementById("qr-reader-settings");
     if (!readerEl) return;
@@ -888,10 +923,19 @@ window.QuillApp = {
         </div>
         <div class="form-group">
           <label for="stepper-host">Host & Port</label>
-          <input type="text" id="stepper-host" value="${defaultHost}" placeholder="${defaultHost}" autocomplete="off">
+          <div class="host-input-group">
+            <input type="text" id="stepper-host" value="${defaultHost}" placeholder="${defaultHost}" autocomplete="off">
+            <button class="btn btn-ghost btn-sm btn-scan-conn" id="btn-scan-stepper-host" title="Scan QR code to fill Host & Port">QR</button>
+          </div>
           <small>${hint}</small>
         </div>
       `;
+
+      // Wire up stepper QR scan
+      const scanBtn = document.getElementById("btn-scan-stepper-host");
+      if (scanBtn) {
+        scanBtn.addEventListener("click", () => this._scanQRForStepperHost());
+      }
     } else {
       container.innerHTML = `
         <div class="form-group">

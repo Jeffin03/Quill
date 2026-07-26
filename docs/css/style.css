@@ -1749,6 +1749,21 @@ body {
   display: none;
 }
 
+.host-input-group {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.host-input-group input {
+  flex: 1;
+}
+
+.host-input-group .btn-scan-conn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .btn-scan-conn {
   font-size: 10px;
   font-weight: 600;

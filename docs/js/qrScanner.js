@@ -5,6 +5,10 @@
 window.QuillQR = {
   scanner: null,
 
+  init() {
+    // placeholder — scanner is created on demand
+  },
+
   async stopScanner() {
     if (this.scanner) {
       try {
