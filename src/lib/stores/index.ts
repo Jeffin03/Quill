@@ -71,8 +71,9 @@ export function startHeartbeat() {
 
 	const check = async () => {
 		const { getConfig } = await import('$lib/services/db');
+		const { getEntryConfig } = await import('$lib/services/llm');
 		const config = await getConfig();
-		const entries = (config.apiEntries ?? []).filter((e) => e.capabilities?.text && e.host);
+		const entries = (config.apiEntries ?? []).filter((e) => e.capabilities?.text);
 		if (entries.length === 0) {
 			connectionStatus.set({});
 			return;
@@ -82,12 +83,23 @@ export function startHeartbeat() {
 		await Promise.allSettled(
 			entries.map(async (entry) => {
 				try {
-					const baseUrl =
-						entry.provider === 'lmstudio' || entry.provider === 'ollama'
-							? `${entry.host}/v1/models`
-							: entry.host;
-					const res = await fetch(baseUrl, {
+					const cfg = getEntryConfig(entry);
+					if (!cfg) {
+						results[entry.id] = false;
+						return;
+					}
+					const baseUrl = cfg.baseUrl.replace(/\/+$/, '');
+					const isLocal =
+						entry.provider === 'lmstudio' ||
+						entry.provider === 'ollama';
+					const url = isLocal ? `${baseUrl}/v1/models` : baseUrl;
+					const headers: Record<string, string> = {};
+					if (cfg.apiKey) {
+						headers['Authorization'] = `Bearer ${cfg.apiKey}`;
+					}
+					const res = await fetch(url, {
 						method: 'GET',
+						headers,
 						signal: AbortSignal.timeout(5000)
 					});
 					results[entry.id] = res.ok;

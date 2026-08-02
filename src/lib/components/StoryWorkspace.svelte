@@ -81,10 +81,13 @@
 
 	let llmConfigured = $state(false);
 
+	async function refreshLlmStatus() {
+		const cfg = await db.getConfig();
+		llmConfigured = (cfg.apiEntries ?? []).some((e) => e.capabilities?.text);
+	}
+
 	$effect(() => {
-		db.getConfig().then((cfg) => {
-			llmConfigured = (cfg.apiEntries ?? []).some((e) => e.capabilities?.text);
-		});
+		refreshLlmStatus();
 	});
 
 	async function handleGenerate(opts: { sanitize: boolean; rewrite: boolean }) {
@@ -602,7 +605,7 @@
 	</header>
 
 	{#if showSettings}
-		<APIManagerModal onclose={() => (showSettings = false)} />
+		<APIManagerModal onclose={() => { showSettings = false; refreshLlmStatus(); }} />
 	{/if}
 
 	{#if showStorySettings}

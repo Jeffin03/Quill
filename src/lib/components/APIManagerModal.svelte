@@ -3,6 +3,7 @@
 	import * as db from '$lib/services/db';
 	import { uuid } from '$lib/utils';
 	import { addToast } from '$lib/stores';
+	import { NIM_MODELS } from '$lib/services/imageGen';
 	import {
 		X,
 		Plus,
@@ -172,7 +173,9 @@
 		entryCapabilities.text ? TEXT_FEATURES : entryCapabilities.image ? IMAGE_FEATURES : []
 	);
 
-	let discoveredModels = $state<string[]>([]);
+	type DiscoveredModel = { id: string; name: string; free: boolean };
+
+	let discoveredModels = $state<DiscoveredModel[]>([]);
 	let discoveringModels = $state(false);
 
 	// Auto-discover models when entering step 2
@@ -275,20 +278,28 @@
 		discoveringModels = true;
 		discoveredModels = [];
 		try {
-			let models: string[] = [];
+			let models: DiscoveredModel[] = [];
 			if (selectedProvider === 'ollama') {
 				const baseUrl = `http://${host}:${port}`;
 				const res = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(5000) });
 				if (res.ok) {
 					const data = await res.json();
-					models = (data.models ?? []).map((m: { name: string }) => m.name);
+					models = (data.models ?? []).map((m: { name: string }) => ({
+						id: m.name,
+						name: m.name,
+						free: true
+					}));
 				}
 			} else if (selectedProvider === 'lmstudio') {
 				const baseUrl = `http://${host}:${port}`;
 				const res = await fetch(`${baseUrl}/v1/models`, { signal: AbortSignal.timeout(5000) });
 				if (res.ok) {
 					const data = await res.json();
-					models = (data.data ?? []).map((m: { id: string }) => m.id);
+					models = (data.data ?? []).map((m: { id: string }) => ({
+						id: m.id,
+						name: m.id,
+						free: true
+					}));
 				}
 			} else if (selectedProvider === 'openrouter' && apiKey) {
 				const res = await fetch('https://openrouter.ai/api/v1/models', {
@@ -297,16 +308,35 @@
 				});
 				if (res.ok) {
 					const data = await res.json();
-					models = (data.data ?? []).map((m: { id: string }) => m.id);
+					models = (data.data ?? []).map(
+						(m: { id: string; name: string; pricing?: { prompt?: string; completion?: string } }) => ({
+							id: m.id,
+							name: m.name || m.id,
+							free:
+								m.pricing?.prompt === '0' && m.pricing?.completion === '0'
+						})
+					);
+					models.sort((a, b) => (a.free === b.free ? a.name.localeCompare(b.name) : a.free ? -1 : 1));
 				}
 			} else if (selectedProvider === 'nim' && apiKey) {
-				const res = await fetch('https://api.nvcf.nim.com/v1/models', {
-					headers: { Authorization: `Bearer ${apiKey}` },
-					signal: AbortSignal.timeout(10000)
-				});
-				if (res.ok) {
-					const data = await res.json();
-					models = (data.data ?? []).map((m: { id: string }) => m.id);
+				try {
+					const res = await fetch('https://api.nvcf.nim.com/v1/models', {
+						headers: { Authorization: `Bearer ${apiKey}` },
+						signal: AbortSignal.timeout(10000)
+					});
+					if (res.ok) {
+						const data = await res.json();
+						models = (data.data ?? []).map((m: { id: string }) => ({
+							id: m.id,
+							name: m.id,
+							free: true
+						}));
+					}
+				} catch {
+					// NIM API may be blocked by CORS — fall back to known models
+				}
+				if (models.length === 0) {
+					models = NIM_MODELS.map((m) => ({ id: m.id, name: m.name, free: true }));
 				}
 			}
 			discoveredModels = models;
@@ -683,8 +713,9 @@
 								{#if discoveringModels}
 									Discovering available models...
 								{:else if discoveredModels.length > 0}
-									Found {discoveredModels.length} model{discoveredModels.length === 1 ? '' : 's'} — select
-									or type a model name
+									{@const freeCount = discoveredModels.filter((m) => m.free).length}
+									Found {discoveredModels.length} model{discoveredModels.length === 1 ? '' : 's'}{#if freeCount > 0} ({freeCount} free){/if}
+									— select or type a model name
 								{:else}
 									Enter the model to use
 								{/if}
@@ -702,8 +733,8 @@
 								/>
 								{#if discoveredModels.length > 0}
 									<datalist id="discovered-models">
-										{#each discoveredModels as m (m)}
-											<option value={m}></option>
+										{#each discoveredModels as m (m.id)}
+											<option value={m.id}>{m.name}{m.free ? ' (free)' : ''}</option>
 										{/each}
 									</datalist>
 								{/if}
