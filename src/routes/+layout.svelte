@@ -1,6 +1,7 @@
 <script lang="ts">
 	import './layout.css';
 	import { dev } from '$app/environment';
+	import { base } from '$app/paths';
 	import { addToast, startHeartbeat } from '$lib/stores';
 	import Toaster from '$lib/components/Toaster.svelte';
 
@@ -11,17 +12,22 @@
 
 		if (dev || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
 
-		navigator.serviceWorker.register('/service-worker.js', { type: 'module' }).then((reg) => {
-			reg.addEventListener('updatefound', () => {
-				const installing = reg.installing;
-				if (!installing || !navigator.serviceWorker.controller) return;
-				installing.addEventListener('statechange', () => {
-					if (installing.state === 'installed') {
-						addToast('Update available — reload to apply', 'info');
-					}
+		navigator.serviceWorker
+			.register(`${base}/service-worker.js`, { type: 'module' })
+			.then((reg) => {
+				reg.addEventListener('updatefound', () => {
+					const installing = reg.installing;
+					if (!installing || !navigator.serviceWorker.controller) return;
+					installing.addEventListener('statechange', () => {
+						if (installing.state === 'installed') {
+							addToast('Update available — reload to apply', 'info');
+						}
+					});
 				});
+			})
+			.catch(() => {
+				// Service worker registration failed — app still works without it
 			});
-		});
 
 		let reloaded = false;
 		navigator.serviceWorker.addEventListener('controllerchange', () => {
