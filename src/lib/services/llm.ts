@@ -136,7 +136,8 @@ async function _streamChat(
 	entry: APIEntry,
 	messages: { role: string; content: string }[],
 	signal: AbortSignal,
-	config: AppConfig
+	config: AppConfig,
+	onChunk?: (chunk: string) => void
 ): Promise<string> {
 	const entryConfig = getEntryConfig(entry);
 	if (!entryConfig) throw new Error('Invalid API entry');
@@ -187,7 +188,10 @@ async function _streamChat(
 				try {
 					const parsed = JSON.parse(data);
 					const content = parsed.choices?.[0]?.delta?.content || '';
-					if (content) fullContent += content;
+					if (content) {
+						fullContent += content;
+						onChunk?.(content);
+					}
 				} catch {
 					// Skip malformed chunks
 				}
@@ -231,7 +235,7 @@ export function streamChat(
 
 		try {
 			const config = await getConfig();
-			const fullContent = await _streamChat(entry, messages, controller.signal, config);
+			const fullContent = await _streamChat(entry, messages, controller.signal, config, callbacks.onChunk);
 			if (currentTimeoutId) clearTimeout(currentTimeoutId);
 			callbacks.onDone?.(fullContent);
 		} catch (err: unknown) {
@@ -282,7 +286,7 @@ export function streamChatWithEntry(
 	(async () => {
 		try {
 			const config = await getConfig();
-			const fullContent = await _streamChat(entry, messages, controller.signal, config);
+			const fullContent = await _streamChat(entry, messages, controller.signal, config, callbacks.onChunk);
 			callbacks.onDone?.(fullContent);
 		} catch (err: unknown) {
 			if (err instanceof Error && err.name !== 'AbortError') {
