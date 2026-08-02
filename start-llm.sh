@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # ══════════════════════════════════════════
 # Quill — LLM + Tunnel Launcher
 # Starts Ollama or LM Studio with CORS enabled
@@ -19,13 +20,13 @@ print_box() {
   local content="$2"
   local width=50
   local border=""
-  for ((i=0; i<width; i++)); do border+="-"; done
+  for ((i = 0; i < width; i++)); do border+="-"; done
 
   echo "+${border}+"
-  printf "| %-$((width-2))s |\n" "$title"
+  printf "| %-$((width - 2))s |\n" "$title"
   echo "+${border}+"
   echo -e "$content" | while IFS= read -r line; do
-    printf "| %-$((width-2))s |\n" "  $line"
+    printf "| %-$((width - 2))s |\n" "  $line"
   done
   echo "+${border}+"
 }
@@ -35,13 +36,13 @@ print_error() {
   local content="$2"
   local width=50
   local border=""
-  for ((i=0; i<width; i++)); do border+="-"; done
+  for ((i = 0; i < width; i++)); do border+="-"; done
 
   echo "+${border}+"
-  printf "| %-$((width-2))s |\n" "ERROR: $title"
+  printf "| %-$((width - 2))s |\n" "ERROR: $title"
   echo "+${border}+"
   echo -e "$content" | while IFS= read -r line; do
-    printf "| %-$((width-2))s |\n" "  $line"
+    printf "| %-$((width - 2))s |\n" "  $line"
   done
   echo "+${border}+"
 }
@@ -65,8 +66,14 @@ echo "Pick your LLM backend:"
 echo ""
 select PROVIDER in "ollama" "lm-studio"; do
   case $PROVIDER in
-    ollama )   LLM_PORT=11434; break;;
-    lm-studio ) LLM_PORT=1234;  break;;
+  ollama)
+    LLM_PORT=11434
+    break
+    ;;
+  lm-studio)
+    LLM_PORT=1234
+    break
+    ;;
   esac
 done
 
@@ -79,18 +86,18 @@ echo ""
 MISSING=0
 
 case "$PROVIDER" in
-  ollama )
-    if ! command -v ollama &>/dev/null; then
-      print_error "ollama not found" "Install: https://ollama.com/download\nOr: yay -S ollama"
-      MISSING=1
-    fi
-    ;;
-  lm-studio )
-    if ! command -v lms &>/dev/null; then
-      print_error "lms (LM Studio CLI) not found" "Install LM Studio: https://lmstudio.ai\nThen run: lms bootstrap"
-      MISSING=1
-    fi
-    ;;
+ollama)
+  if ! command -v ollama &>/dev/null; then
+    print_error "ollama not found" "Install: https://ollama.com/download\nOr: yay -S ollama"
+    MISSING=1
+  fi
+  ;;
+lm-studio)
+  if ! command -v lms &>/dev/null; then
+    print_error "lms (LM Studio CLI) not found" "Install LM Studio: https://lmstudio.ai\nThen run: lms bootstrap"
+    MISSING=1
+  fi
+  ;;
 esac
 
 if ! command -v cloudflared &>/dev/null; then
@@ -110,37 +117,37 @@ echo ""
 # ── Start provider ─────────────────────────
 
 case "$PROVIDER" in
-  ollama )
-    echo "Starting Ollama (CORS enabled)..."
-    sudo killall ollama 2>/dev/null
-    pkill -f "ollama serve" 2>/dev/null
-    sleep 2
-    OLLAMA_HOST=0.0.0.0:$LLM_PORT OLLAMA_ORIGINS="*" ollama serve &
-    LLM_PID=$!
-    sleep 3
-    if ! kill -0 "$LLM_PID" 2>/dev/null; then
-      print_error "Ollama failed to start" "Check if port $LLM_PORT is already in use.\nRun: sudo lsof -i :$LLM_PORT"
-      exit 1
-    fi
-    if ! curl -s http://localhost:$LLM_PORT/api/tags >/dev/null 2>&1; then
-      print_error "Ollama not responding" "Server started but health check failed.\nCheck: curl http://localhost:$LLM_PORT/api/tags"
-      exit 1
-    fi
-    print_box "Ollama Running" "PID: $LLM_PID\nEndpoint: http://localhost:$LLM_PORT"
-    ;;
-  lm-studio )
-    echo "Checking LM Studio server (start it from the GUI first)..."
-    sleep 2
-    if ! curl -s http://localhost:$LLM_PORT/v1/models >/dev/null 2>&1; then
-      print_error "LM Studio not responding" "Open LM Studio GUI, enable the server (port $LLM_PORT), then re-run.\nVerify with: curl http://localhost:$LLM_PORT/v1/models"
-      exit 1
-    fi
-    # Start CORS proxy — LM Studio doesn't set CORS headers, but the
-    # cloudflared tunnel is cross-origin from the Quill app, so the
-    # browser would block the response without them.
-    CORS_PROXY_PORT=11435
-    echo "Starting CORS proxy on port $CORS_PROXY_PORT..."
-    node -e "
+ollama)
+  echo "Starting Ollama (CORS enabled)..."
+  sudo killall ollama 2>/dev/null
+  pkill -f "ollama serve" 2>/dev/null
+  sleep 2
+  OLLAMA_HOST=0.0.0.0:$LLM_PORT OLLAMA_ORIGINS="*" ollama serve &
+  LLM_PID=$!
+  sleep 3
+  if ! kill -0 "$LLM_PID" 2>/dev/null; then
+    print_error "Ollama failed to start" "Check if port $LLM_PORT is already in use.\nRun: sudo lsof -i :$LLM_PORT"
+    exit 1
+  fi
+  if ! curl -s http://localhost:$LLM_PORT/api/tags >/dev/null 2>&1; then
+    print_error "Ollama not responding" "Server started but health check failed.\nCheck: curl http://localhost:$LLM_PORT/api/tags"
+    exit 1
+  fi
+  print_box "Ollama Running" "PID: $LLM_PID\nEndpoint: http://localhost:$LLM_PORT"
+  ;;
+lm-studio)
+  echo "Checking LM Studio server (start it from the GUI first)..."
+  sleep 2
+  if ! curl -s http://localhost:$LLM_PORT/v1/models >/dev/null 2>&1; then
+    print_error "LM Studio not responding" "Open LM Studio GUI, enable the server (port $LLM_PORT), then re-run.\nVerify with: curl http://localhost:$LLM_PORT/v1/models"
+    exit 1
+  fi
+  # Start CORS proxy — LM Studio doesn't set CORS headers, but the
+  # cloudflared tunnel is cross-origin from the Quill app, so the
+  # browser would block the response without them.
+  CORS_PROXY_PORT=11435
+  echo "Starting CORS proxy on port $CORS_PROXY_PORT..."
+  node -e "
 const http = require('http');
 http.createServer((req, res) => {
   if (req.method === 'OPTIONS') {
@@ -167,16 +174,16 @@ http.createServer((req, res) => {
 }).listen($CORS_PROXY_PORT, '0.0.0.0');
 console.log('CORS proxy running on port $CORS_PROXY_PORT');
 " &
-    PROXY_PID=$!
-    sleep 1
-    if ! kill -0 "$PROXY_PID" 2>/dev/null; then
-      print_error "CORS proxy failed to start"
-      exit 1
-    fi
-    # Use the proxy port for the tunnel
-    LLM_PORT=$CORS_PROXY_PORT
-    print_box "LM Studio Running" "Endpoint: http://localhost:1234\nCORS proxy: http://0.0.0.0:$CORS_PROXY_PORT"
-    ;;
+  PROXY_PID=$!
+  sleep 1
+  if ! kill -0 "$PROXY_PID" 2>/dev/null; then
+    print_error "CORS proxy failed to start"
+    exit 1
+  fi
+  # Use the proxy port for the tunnel
+  LLM_PORT=$CORS_PROXY_PORT
+  print_box "LM Studio Running" "Endpoint: http://localhost:1234\nCORS proxy: http://0.0.0.0:$CORS_PROXY_PORT"
+  ;;
 esac
 echo ""
 
@@ -187,7 +194,7 @@ echo "Starting Cloudflare tunnel..."
 rm -f "$TUNNEL_LOG"
 systemd-inhibit --why="Quill Writing Session" --mode=block \
   cloudflared tunnel --url http://localhost:$LLM_PORT --proxy-connect-timeout 300s \
-  > "$TUNNEL_LOG" 2>&1 &
+  >"$TUNNEL_LOG" 2>&1 &
 TUNNEL_PID=$!
 
 # Wait for tunnel URL (max 30 seconds)
