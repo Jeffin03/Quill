@@ -3,7 +3,6 @@
 	import * as db from '$lib/services/db';
 	import { uuid } from '$lib/utils';
 	import { addToast } from '$lib/stores';
-	import { NIM_MODELS } from '$lib/services/imageGen';
 	import {
 		X,
 		Plus,
@@ -176,10 +175,14 @@
 	let discoveredModels = $state<string[]>([]);
 	let discoveringModels = $state(false);
 
-	// Auto-discover local models when entering step 2
+	// Auto-discover models when entering step 2
 	$effect(() => {
-		if (step === 2 && isLocal && host) {
-			discoverModels();
+		if (step === 2) {
+			if (isLocal && host) {
+				discoverModels();
+			} else if (!isLocal && apiKey) {
+				discoverModels();
+			}
 		}
 	});
 
@@ -269,20 +272,38 @@
 	}
 
 	async function discoverModels() {
-		if (!isLocal || !host) return;
 		discoveringModels = true;
 		discoveredModels = [];
 		try {
-			const baseUrl = `http://${host}:${port}`;
 			let models: string[] = [];
 			if (selectedProvider === 'ollama') {
+				const baseUrl = `http://${host}:${port}`;
 				const res = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(5000) });
 				if (res.ok) {
 					const data = await res.json();
 					models = (data.models ?? []).map((m: { name: string }) => m.name);
 				}
 			} else if (selectedProvider === 'lmstudio') {
+				const baseUrl = `http://${host}:${port}`;
 				const res = await fetch(`${baseUrl}/v1/models`, { signal: AbortSignal.timeout(5000) });
+				if (res.ok) {
+					const data = await res.json();
+					models = (data.data ?? []).map((m: { id: string }) => m.id);
+				}
+			} else if (selectedProvider === 'openrouter' && apiKey) {
+				const res = await fetch('https://openrouter.ai/api/v1/models', {
+					headers: { Authorization: `Bearer ${apiKey}` },
+					signal: AbortSignal.timeout(10000)
+				});
+				if (res.ok) {
+					const data = await res.json();
+					models = (data.data ?? []).map((m: { id: string }) => m.id);
+				}
+			} else if (selectedProvider === 'nim' && apiKey) {
+				const res = await fetch('https://api.nvcf.nim.com/v1/models', {
+					headers: { Authorization: `Bearer ${apiKey}` },
+					signal: AbortSignal.timeout(10000)
+				});
 				if (res.ok) {
 					const data = await res.json();
 					models = (data.data ?? []).map((m: { id: string }) => m.id);
@@ -676,22 +697,11 @@
 									id="api-model"
 									bind:value={model}
 									placeholder={prov.placeholder}
-									list={prov.id === 'nim'
-										? 'nim-models'
-										: isLocal && discoveredModels.length > 0
-											? 'local-models'
-											: undefined}
+									list={discoveredModels.length > 0 ? 'discovered-models' : undefined}
 									class="w-full bg-input-background border border-border text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm outline-none focus:border-primary/40"
 								/>
-								{#if prov.id === 'nim'}
-									<datalist id="nim-models">
-										{#each NIM_MODELS as m (m.id)}
-											<option value={m.id}>{m.name}</option>
-										{/each}
-									</datalist>
-								{/if}
-								{#if isLocal && discoveredModels.length > 0}
-									<datalist id="local-models">
+								{#if discoveredModels.length > 0}
+									<datalist id="discovered-models">
 										{#each discoveredModels as m (m)}
 											<option value={m}></option>
 										{/each}
