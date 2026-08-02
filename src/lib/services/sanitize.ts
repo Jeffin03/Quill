@@ -69,6 +69,19 @@ const RULES: { pattern: RegExp; placeholder: string }[] = [
 	{ pattern: /\b(Jujutsu Kaisen|JJK)\b/gi, placeholder: '[[SERIES_JJK]]' },
 	{ pattern: /\b(Chainsaw Man|CSM)\b/gi, placeholder: '[[SERIES_CSM]]' },
 	{ pattern: /\b(Solo Leveling)\b/gi, placeholder: '[[SERIES_SOLOLV]]' },
+	{ pattern: /\b(The Eminence in Shadow)\b/gi, placeholder: '[[SERIES_EMINENCE]]' },
+
+	// ── Eminence in Shadow characters ──────
+	{ pattern: /\bCid Kagenou\b/g, placeholder: '[[CID]]' },
+	{ pattern: /\bShadow\b/g, placeholder: '[[SHADOW]]' },
+	{ pattern: /\bAlpha\b/g, placeholder: '[[ALPHA_CHAR]]' },
+	{ pattern: /\bBeta\b/g, placeholder: '[[BETA_CHAR]]' },
+	{ pattern: /\bGamma\b/g, placeholder: '[[GAMMA_CHAR]]' },
+	{ pattern: /\bDelta\b/g, placeholder: '[[DELTA_CHAR]]' },
+	{ pattern: /\bEpsilon\b/g, placeholder: '[[EPSILON_CHAR]]' },
+	{ pattern: /\bZeta\b/g, placeholder: '[[ZETA_CHAR]]' },
+	{ pattern: /\bEta\b/g, placeholder: '[[ETA_CHAR]]' },
+	{ pattern: /\bShadow Garden\b/g, placeholder: '[[SHADOW_GARDEN]]' },
 
 	// ── Explicit content terms ──────────────
 	{
@@ -144,7 +157,13 @@ const REFUSAL_PATTERNS: RegExp[] = [
 	/against (my|our) (content|usage|safety) policy/i,
 	/I can't (generate|write|create|produce|complete|fulfill)/i,
 	/I can't help with/i,
-	/I can't assist/i
+	/I can't assist/i,
+	/I('m| am) not (going|able) to (write|create|generate|produce)/i,
+	/I (won't|will not) (write|create|generate|produce)/i,
+	/that isn't (something|anything) I (can|can't|cannot)/i,
+	/not (something|anything) I('m| am) (able|going|willing) to/i,
+	/this (request|scene|content) (is|involves).*(not|can't|cannot|won't)/i,
+	/(graphic|explicit|gore|violent).*(not|can't|cannot|won't).*(write|create|produce)/i
 ];
 
 function isGuardrailRefusal(content: string): boolean {
