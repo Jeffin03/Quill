@@ -144,7 +144,11 @@ const REFUSAL_PATTERNS: RegExp[] = [
 	/against (my|our) (content|usage|safety) policy/i,
 	/I can't (generate|write|create|produce|complete|fulfill)/i,
 	/I can't help with/i,
-	/I can't assist/i
+	/I can't assist/i,
+	/I('m| am) not (going|able) to (write|create|generate|produce)/i,
+	/I (won't|will not) (write|create|generate|produce)/i,
+	/that isn't (something|anything) I (can|can't|cannot)/i,
+	/not (something|anything) I('m| am) (able|going|willing) to/i
 ];
 
 function isGuardrailRefusal(content: string): boolean {
