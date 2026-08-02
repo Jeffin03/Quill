@@ -320,7 +320,7 @@
 				}
 			} else if (selectedProvider === 'nim' && apiKey) {
 				try {
-					const res = await fetch('https://api.nvcf.nim.com/v1/models', {
+					const res = await fetch('https://integrate.api.nvidia.com/v1/models', {
 						headers: { Authorization: `Bearer ${apiKey}` },
 						signal: AbortSignal.timeout(10000)
 					});

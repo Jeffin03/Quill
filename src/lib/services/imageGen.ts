@@ -16,7 +16,7 @@ export const NIM_MODELS: { id: string; name: string }[] = [
 	{ id: 'qwen/qwen-image', name: 'Qwen-Image' }
 ];
 
-const NIM_BASE = 'https://api.nvcf.nim.com/v1';
+const NIM_BASE = 'https://ai.api.nvidia.com/v1';
 
 // ── Entry Resolution ─────────────────────
 
@@ -80,7 +80,7 @@ async function generateNimImage(
 	apiKey: string | undefined,
 	signal?: AbortSignal
 ): Promise<string> {
-	const response = await fetch(`${NIM_BASE}/images/generations`, {
+	const response = await fetch(`${NIM_BASE}/genai/${model}`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
@@ -88,10 +88,10 @@ async function generateNimImage(
 		},
 		signal,
 		body: JSON.stringify({
-			model: model || 'black-forest-labs/flux.1-schnell',
 			prompt,
-			n: 1,
-			response_format: 'b64_json'
+			seed: Math.floor(Math.random() * 2 ** 32),
+			width: 1024,
+			height: 1024
 		})
 	});
 
@@ -101,7 +101,7 @@ async function generateNimImage(
 	}
 
 	const data = await response.json();
-	const b64 = data.data?.[0]?.b64_json;
+	const b64 = data.artifacts?.[0]?.base64;
 	if (!b64) throw new Error('No image returned from NIM');
 	return b64;
 }

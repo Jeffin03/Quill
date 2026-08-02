@@ -109,6 +109,13 @@ export function getEntryConfig(entry: APIEntry | undefined): EntryConfig | null 
 		};
 	}
 
+	if (entry.provider === 'nim') {
+		return {
+			baseUrl: 'https://integrate.api.nvidia.com/v1',
+			apiKey: entry.apiKey || ''
+		};
+	}
+
 	return {
 		baseUrl: entry.host?.replace(/\/+$/, '') || '',
 		apiKey: entry.apiKey || ''
