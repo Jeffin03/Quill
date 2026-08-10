@@ -6,13 +6,17 @@ Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.0.1] - 2026-08-10
 
+### Added
+
+- PWA install banner — prompts users to add Quill to their home screen
+
 ### Fixed
 
 - Mobile viewport auto-zoom on input focus (iOS/Android) — added `maximum-scale=1` and `viewport-fit=cover`
 - Layout glitching on mobile browsers with dynamic chrome — replaced `h-screen`/`min-h-screen` with `100dvh` across all full-screen containers
 - InstructionPanel compact textarea height conflict causing layout thrashing
-- Touch scroll performance — added `-webkit-overflow-scrolling: touch` and `overscroll-behavior: contain` to scroll containers
-- Double-tap zoom on interactive elements — added `touch-action: manipulation` globally
+- Continuous scroll glitching — removed overly aggressive `overscroll-behavior: none` on html/body and `touch-action: manipulation` on all elements that were fighting browser native scroll
+- Modal interaction issues — same root cause as scroll glitching
 - FAB and bottom tab bar hidden behind home indicator on modern phones — added `env(safe-area-inset-bottom)` padding
 - Modal height units updated from `vh` to `dvh` for consistent sizing on mobile
 

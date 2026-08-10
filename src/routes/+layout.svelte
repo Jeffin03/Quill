@@ -4,6 +4,7 @@
 	import { base } from '$app/paths';
 	import { addToast, startHeartbeat } from '$lib/stores';
 	import Toaster from '$lib/components/Toaster.svelte';
+	import PWAInstall from '$lib/components/PWAInstall.svelte';
 
 	let { children } = $props();
 
@@ -50,3 +51,4 @@
 </svelte:head>
 {@render children()}
 <Toaster />
+<PWAInstall />

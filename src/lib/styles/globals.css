@@ -14,22 +14,6 @@
 	overscroll-behavior: contain;
 }
 
-/* Prevent pull-to-refresh and bounce on the main app shell */
-html,
-body {
-	overscroll-behavior: none;
-}
-
-/* Prevent double-tap zoom on interactive elements */
-button,
-a,
-[role='button'],
-input,
-textarea,
-select {
-	touch-action: manipulation;
-}
-
 .manuscript {
 	font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
 	font-size: 1.125rem;
