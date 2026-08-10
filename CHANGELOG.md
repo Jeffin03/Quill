@@ -9,6 +9,11 @@ Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - Netlify 404 on page refresh — added `_redirects` to serve `index.html` for all routes (SPA fallback)
+- Stream timeout killing active generation — changed from hard 60s cap to 90s inactivity timeout (resets on each chunk)
+- Data loss on timeout/error — partial responses are now saved to IndexedDB instead of being rolled back
+- User direction lost on page refresh during generation — user message now persists to IndexedDB immediately
+- Stream continuing after navigating away — component now aborts active streams on unmount
+- Ghost user message when no API configured — early return now properly rolls back the user message
 
 ### Changed
 

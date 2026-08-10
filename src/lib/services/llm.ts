@@ -235,14 +235,23 @@ export function streamChat(
 
 		const entry = candidates[currentIdx];
 		let timedOut = false;
-		currentTimeoutId = setTimeout(() => {
-			timedOut = true;
-			controller.abort();
-		}, 60000);
+		const resetTimeout = () => {
+			if (currentTimeoutId) clearTimeout(currentTimeoutId);
+			currentTimeoutId = setTimeout(() => {
+				timedOut = true;
+				controller.abort();
+			}, 90_000);
+		};
+		resetTimeout();
+
+		const wrappedOnChunk = (chunk: string) => {
+			resetTimeout();
+			callbacks.onChunk?.(chunk);
+		};
 
 		try {
 			const config = await getConfig();
-			const fullContent = await _streamChat(entry, messages, controller.signal, config, callbacks.onChunk);
+			const fullContent = await _streamChat(entry, messages, controller.signal, config, wrappedOnChunk);
 			if (currentTimeoutId) clearTimeout(currentTimeoutId);
 			callbacks.onDone?.(fullContent);
 		} catch (err: unknown) {
@@ -285,15 +294,25 @@ export function streamChatWithEntry(
 ): StreamHandle {
 	const controller = new AbortController();
 	let timedOut = false;
-	const timeoutId = setTimeout(() => {
-		timedOut = true;
-		controller.abort();
-	}, 60000);
+	let timeoutId: ReturnType<typeof setTimeout> | undefined;
+	const resetTimeout = () => {
+		if (timeoutId !== undefined) clearTimeout(timeoutId);
+		timeoutId = setTimeout(() => {
+			timedOut = true;
+			controller.abort();
+		}, 90_000);
+	};
+	resetTimeout();
+
+	const wrappedOnChunk = (chunk: string) => {
+		resetTimeout();
+		callbacks.onChunk?.(chunk);
+	};
 
 	(async () => {
 		try {
 			const config = await getConfig();
-			const fullContent = await _streamChat(entry, messages, controller.signal, config, callbacks.onChunk);
+			const fullContent = await _streamChat(entry, messages, controller.signal, config, wrappedOnChunk);
 			callbacks.onDone?.(fullContent);
 		} catch (err: unknown) {
 			if (err instanceof Error && err.name !== 'AbortError') {
