@@ -4,6 +4,12 @@ All notable changes to Quill will be documented in this file.
 
 Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.2] - 2026-08-10
+
+### Fixed
+
+- Netlify 404 on page refresh — added `_redirects` to serve `index.html` for all routes (SPA fallback)
+
 ## [1.0.1] - 2026-08-10
 
 ### Added
