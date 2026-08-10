@@ -12,6 +12,10 @@ Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Infinite reload loop on mobile caused by service worker `skipWaiting()` + `clients.claim()` triggering `controllerchange` → `location.reload()` cycle
+- Service worker now waits for existing tabs to close before activating updates
+- Removed automatic page reload on service worker controller change — updates show a toast instead
+- Added Netlify `_headers` to prevent caching of `service-worker.js` and `manifest.json`
 - Mobile viewport auto-zoom on input focus (iOS/Android) — added `maximum-scale=1` and `viewport-fit=cover`
 - Layout glitching on mobile browsers with dynamic chrome — replaced `h-screen`/`min-h-screen` with `100dvh` across all full-screen containers
 - InstructionPanel compact textarea height conflict causing layout thrashing

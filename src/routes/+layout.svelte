@@ -16,11 +16,14 @@
 		navigator.serviceWorker
 			.register(`${base}/service-worker.js`, { type: 'module' })
 			.then((reg) => {
+				let updateToastShown = false;
+
 				reg.addEventListener('updatefound', () => {
 					const installing = reg.installing;
-					if (!installing || !navigator.serviceWorker.controller) return;
+					if (!installing) return;
 					installing.addEventListener('statechange', () => {
-						if (installing.state === 'installed') {
+						if (installing.state === 'installed' && !updateToastShown) {
+							updateToastShown = true;
 							addToast('Update available — reload to apply', 'info');
 						}
 					});
@@ -29,13 +32,6 @@
 			.catch(() => {
 				// Service worker registration failed — app still works without it
 			});
-
-		let reloaded = false;
-		navigator.serviceWorker.addEventListener('controllerchange', () => {
-			if (reloaded) return;
-			reloaded = true;
-			window.location.reload();
-		});
 	});
 </script>
 

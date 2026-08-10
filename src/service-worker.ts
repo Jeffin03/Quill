@@ -12,12 +12,7 @@ const CACHE = `quill-${version}`;
 const ASSETS = [...build, ...files];
 
 self.addEventListener('install', (event) => {
-	event.waitUntil(
-		caches
-			.open(CACHE)
-			.then((cache) => cache.addAll(ASSETS))
-			.then(() => self.skipWaiting())
-	);
+	event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
 });
 
 self.addEventListener('activate', (event) => {
@@ -25,7 +20,6 @@ self.addEventListener('activate', (event) => {
 		(async () => {
 			const keys = await caches.keys();
 			await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
-			await self.clients.claim();
 		})()
 	);
 });
