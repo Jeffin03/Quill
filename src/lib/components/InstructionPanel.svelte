@@ -88,7 +88,7 @@
 					placeholder="What happens next..."
 					rows={1}
 					class="w-full bg-input-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground resize-none px-3 py-2 text-sm outline-none focus:border-primary/40 transition-colors leading-relaxed"
-					style="min-height: 40px; max-height: 40px"></textarea>
+					style="min-height: 40px"></textarea>
 			</div>
 			{#if isgenerating}
 				<button

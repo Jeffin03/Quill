@@ -309,14 +309,19 @@
 				if (res.ok) {
 					const data = await res.json();
 					models = (data.data ?? []).map(
-						(m: { id: string; name: string; pricing?: { prompt?: string; completion?: string } }) => ({
+						(m: {
+							id: string;
+							name: string;
+							pricing?: { prompt?: string; completion?: string };
+						}) => ({
 							id: m.id,
 							name: m.name || m.id,
-							free:
-								m.pricing?.prompt === '0' && m.pricing?.completion === '0'
+							free: m.pricing?.prompt === '0' && m.pricing?.completion === '0'
 						})
 					);
-					models.sort((a, b) => (a.free === b.free ? a.name.localeCompare(b.name) : a.free ? -1 : 1));
+					models.sort((a, b) =>
+						a.free === b.free ? a.name.localeCompare(b.name) : a.free ? -1 : 1
+					);
 				}
 			} else if (selectedProvider === 'nim' && apiKey) {
 				try {
@@ -403,7 +408,7 @@
 		onclick={onclose}
 	></button>
 	<div
-		class="relative w-full sm:max-w-lg h-[92vh] sm:h-[82vh] rounded-t-2xl sm:rounded-2xl bg-popover border border-border shadow-2xl flex flex-col overflow-hidden"
+		class="relative w-full sm:max-w-lg h-[92dvh] sm:h-[82dvh] rounded-t-2xl sm:rounded-2xl bg-popover border border-border shadow-2xl flex flex-col overflow-hidden"
 	>
 		<div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
 			<div class="flex items-center gap-2">
@@ -714,7 +719,10 @@
 									Discovering available models...
 								{:else if discoveredModels.length > 0}
 									{@const freeCount = discoveredModels.filter((m) => m.free).length}
-									Found {discoveredModels.length} model{discoveredModels.length === 1 ? '' : 's'}{#if freeCount > 0} ({freeCount} free){/if}
+									Found {discoveredModels.length} model{discoveredModels.length === 1
+										? ''
+										: 's'}{#if freeCount > 0}
+										({freeCount} free){/if}
 									— select or type a model name
 								{:else}
 									Enter the model to use

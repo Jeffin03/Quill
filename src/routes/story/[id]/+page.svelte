@@ -24,9 +24,7 @@
 </svelte:head>
 
 {#if error}
-	<div
-		class="min-h-screen flex flex-col items-center justify-center bg-background text-center px-6"
-	>
+	<div class="min-h-dvh flex flex-col items-center justify-center bg-background text-center px-6">
 		<p class="text-foreground font-serif text-xl mb-2">Story not found</p>
 		<p class="text-sm text-muted-foreground mb-6">{error}</p>
 		<a href={resolve('/')} class="text-sm text-primary hover:underline">Back to stories</a>
@@ -34,7 +32,7 @@
 {:else if story}
 	<StoryWorkspace {story} />
 {:else}
-	<div class="min-h-screen flex items-center justify-center bg-background">
+	<div class="min-h-dvh flex items-center justify-center bg-background">
 		<div class="flex gap-1">
 			{#each [0, 1, 2] as i (i)}
 				<div

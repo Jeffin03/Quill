@@ -530,7 +530,7 @@
 	}
 </script>
 
-<div class="h-screen flex flex-col bg-background overflow-hidden">
+<div class="h-dvh flex flex-col bg-background overflow-hidden">
 	<header class="shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-border bg-sidebar">
 		<button
 			onclick={() => goto(resolve('/'))}
@@ -605,7 +605,12 @@
 	</header>
 
 	{#if showSettings}
-		<APIManagerModal onclose={() => { showSettings = false; refreshLlmStatus(); }} />
+		<APIManagerModal
+			onclose={() => {
+				showSettings = false;
+				refreshLlmStatus();
+			}}
+		/>
 	{/if}
 
 	{#if showStorySettings}
@@ -699,7 +704,7 @@
 			</div>
 		</div>
 
-		<div class="flex md:hidden flex-col flex-1 min-h-0">
+		<div class="flex md:hidden flex-col flex-1 min-h-0 scroll-smooth-touch">
 			<div class="flex-1 min-h-0 overflow-hidden flex flex-col">
 				{#if mobilePanel === 'write'}
 					<WritingArea
@@ -741,7 +746,10 @@
 				/>
 			{/if}
 
-			<div class="shrink-0 flex border-t border-border bg-sidebar overflow-x-auto">
+			<div
+				class="shrink-0 flex border-t border-border bg-sidebar overflow-x-auto scroll-smooth-touch"
+				style="padding-bottom: env(safe-area-inset-bottom, 0px)"
+			>
 				{#each mobileTabs as tab (tab.id)}
 					<button
 						onclick={() => (mobilePanel = tab.id)}

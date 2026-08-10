@@ -70,7 +70,7 @@
 	/>
 {/if}
 
-<div class="min-h-screen bg-background flex flex-col">
+<div class="min-h-dvh bg-background flex flex-col">
 	<header class="sticky top-0 z-10 px-4">
 		<div class="flex items-center justify-between py-4 max-w-2xl mx-auto w-full">
 			<div class="flex items-center gap-2.5">
@@ -186,6 +186,7 @@
 	<button
 		onclick={onnewstory}
 		class="fixed bottom-6 right-4 sm:bottom-8 sm:right-8 w-14 h-14 rounded-2xl bg-primary hover:bg-[#d4a853] text-primary-foreground shadow-lg shadow-primary/20 flex items-center justify-center transition-all hover:scale-105 active:scale-95 z-20"
+		style="bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem))"
 		aria-label="New story"
 	>
 		<Plus size={22} />

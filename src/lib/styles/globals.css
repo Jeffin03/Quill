@@ -1,3 +1,35 @@
+/* Dynamic viewport height — accounts for mobile browser chrome */
+.h-dvh {
+	height: 100dvh;
+	height: 100vh; /* fallback for older browsers */
+}
+.min-h-dvh {
+	min-height: 100dvh;
+	min-height: 100vh; /* fallback */
+}
+
+/* Smoother mobile scrolling */
+.scroll-smooth-touch {
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: contain;
+}
+
+/* Prevent pull-to-refresh and bounce on the main app shell */
+html,
+body {
+	overscroll-behavior: none;
+}
+
+/* Prevent double-tap zoom on interactive elements */
+button,
+a,
+[role='button'],
+input,
+textarea,
+select {
+	touch-action: manipulation;
+}
+
 .manuscript {
 	font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
 	font-size: 1.125rem;

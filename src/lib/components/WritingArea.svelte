@@ -98,7 +98,7 @@
 		</p>
 	</div>
 {:else}
-	<div class="flex-1 overflow-y-auto" bind:this={scrollEl} onscroll={onScroll}>
+	<div class="flex-1 overflow-y-auto scroll-smooth-touch" bind:this={scrollEl} onscroll={onScroll}>
 		<div class="max-w-[680px] mx-auto px-5 pt-8 pb-4 space-y-1">
 			{#each messages as message, idx (message.id)}
 				{#if message.role === 'user'}

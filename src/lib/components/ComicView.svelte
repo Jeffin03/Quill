@@ -236,7 +236,7 @@
 			onclick={() => (showPanelModal = false)}
 		></button>
 		<div
-			class="relative w-full sm:max-w-lg h-[85vh] sm:h-[80vh] rounded-t-2xl sm:rounded-2xl bg-popover border border-border shadow-2xl flex flex-col overflow-hidden"
+			class="relative w-full sm:max-w-lg h-[85dvh] sm:h-[80dvh] rounded-t-2xl sm:rounded-2xl bg-popover border border-border shadow-2xl flex flex-col overflow-hidden"
 		>
 			<div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
 				<h2 class="text-foreground">{editingPanel ? 'Edit Panel' : 'Add Panel'}</h2>
@@ -332,7 +332,7 @@
 {/if}
 
 <!-- Main comic layout -->
-<div class="h-screen flex flex-col bg-background overflow-hidden">
+<div class="h-dvh flex flex-col bg-background overflow-hidden">
 	<header class="shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-border bg-sidebar">
 		<button
 			onclick={onclose}

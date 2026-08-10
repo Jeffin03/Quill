@@ -28,7 +28,7 @@
 		onclick={onclose}
 	></button>
 	<div
-		class="relative w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-popover border border-border shadow-2xl flex flex-col overflow-hidden max-h-[92vh]"
+		class="relative w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-popover border border-border shadow-2xl flex flex-col overflow-hidden max-h-[92dvh]"
 	>
 		<div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
 			<h2 class="text-foreground">Manage this passage</h2>
