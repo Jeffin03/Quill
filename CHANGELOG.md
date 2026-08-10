@@ -10,6 +10,10 @@ Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Netlify 404 on page refresh — added `_redirects` to serve `index.html` for all routes (SPA fallback)
 
+### Changed
+
+- Timeline tree headings now show a concise extracted label (first meaningful phrase) instead of raw direction text
+
 ## [1.0.1] - 2026-08-10
 
 ### Added

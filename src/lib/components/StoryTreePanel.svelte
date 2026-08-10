@@ -60,6 +60,39 @@
 		return out;
 	}
 
+	function extractLabel(content: string): string {
+		const prefixes = [
+			/^write\s+(?:a\s+)?(?:scene|chapter|passage|section|part|paragraph|segment|bit|page|entry|fragment|excerpt|snippet|piece|portion|segment|segment)\s+(?:where|in which|about|describing|showing|featuring|that (?:shows|depicts|describes|features|includes))?/i,
+			/^continue\s+(?:the\s+)?(?:story|scene|narrative|tale|chapter|passage|writing|prose)?\s*(?:where|with|by|in which|showing|about)?/i,
+			/^add\s+(?:a\s+)?(?:scene|chapter|passage|section|part|paragraph|bit|page|entry)?\s*(?:where|with|in which|about|showing|featuring)?/i,
+			/^now\s+(?:write|continue|add|show|have|make|describe|include)?\s*(?:a\s+)?(?:scene|chapter|passage)?\s*(?:where|with|in which|about)?/i,
+			/^(?:please|kindly|could you|can you|would you)\s+(?:write|continue|add|show|have|make|describe)?\s*(?:a\s+)?(?:scene|chapter|passage)?\s*(?:where|with|in which|about)?/i,
+			/^let'?s\s+(?:write|continue|add|have|see|show|move|proceed|shift|jump|cut|transition)?\s*(?:a\s+)?(?:scene|chapter|passage)?\s*(?:where|with|in which|about|to)?/i,
+			/^(?:then|next|after that|afterwards|meanwhile|simultaneously|subsequently),?\s*/i,
+		];
+
+		let text = content.trim();
+		for (const re of prefixes) {
+			text = text.replace(re, '').trim();
+		}
+
+		if (!text) return content.slice(0, 50) + (content.length > 50 ? '…' : '');
+
+		const sentenceEnd = text.match(/^[^.!?;:—–-]+[.!?;:—–-]/);
+		if (sentenceEnd && sentenceEnd[0].length <= 55) {
+			return sentenceEnd[0].trim();
+		}
+
+		const commaBreak = text.match(/^[^,]{8,50},/);
+		if (commaBreak) {
+			return commaBreak[0].trim().replace(/,$/, '') + '…';
+		}
+
+		if (text.length <= 50) return text;
+		const spaceIdx = text.lastIndexOf(' ', 48);
+		return text.slice(0, spaceIdx > 20 ? spaceIdx : 48) + '…';
+	}
+
 	let narrativeMessages = $derived(activeMessages().filter((m) => m.role === 'assistant'));
 
 	let visualizedMessages = $derived(
@@ -99,13 +132,13 @@
 			</div>
 			<div class="min-w-0">
 				<div class="text-sm truncate {isActive ? 'text-[#d4a853]' : 'text-[#b8b4aa]'}">
-					{userMsg.content}
+					{extractLabel(userMsg.content)}
 				</div>
-				{#if reply}
-					<p class="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2 font-serif">
-						{reply.content.slice(0, 60)}{reply.content.length > 60 ? '…' : ''}
-					</p>
-				{/if}
+			{#if reply}
+				<p class="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2 font-serif">
+					{extractLabel(reply.content)}
+				</p>
+			{/if}
 			</div>
 		</button>
 
@@ -187,9 +220,9 @@
 								<div class="text-[11px] text-muted-foreground">
 									{formatTimeShort(message.timestamp)}
 								</div>
-								<p class="text-xs text-[#9992a6] leading-relaxed mt-0.5 line-clamp-2 font-serif">
-									{message.content.slice(0, 90)}{message.content.length > 90 ? '…' : ''}
-								</p>
+							<p class="text-xs text-[#9992a6] leading-relaxed mt-0.5 line-clamp-2 font-serif">
+								{extractLabel(message.content)}
+							</p>
 							</div>
 						{/each}
 					</div>
@@ -231,9 +264,9 @@
 								<div class="text-[10px] text-muted-foreground">
 									{formatTimeShort(message.timestamp)}
 								</div>
-								<p class="text-xs text-[#9992a6] leading-relaxed mt-0.5 line-clamp-2 font-serif">
-									{message.content.slice(0, 100)}{message.content.length > 100 ? '…' : ''}
-								</p>
+							<p class="text-xs text-[#9992a6] leading-relaxed mt-0.5 line-clamp-2 font-serif">
+								{extractLabel(message.content)}
+							</p>
 							</div>
 						</div>
 					{/each}
