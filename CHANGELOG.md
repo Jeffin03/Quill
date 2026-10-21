@@ -4,6 +4,22 @@ All notable changes to Quill will be documented in this file.
 
 Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.3] - 2026-10-21
+
+### Added
+
+- Collapsible branches in the timeline tree — chevron toggle with a hidden-item count on every branch node; the active path and top-level branches stay open by default, side branches fold on demand
+
+### Changed
+
+- Timeline tree rendering flattened — indentation now caps at 2 levels and folds into a fixed 40px column, so long stories no longer drift diagonally into unreadable territory (a 30-deep chain previously pushed text ~638px right)
+- Tree hierarchy drawn with file-tree style guide rails and elbow connectors that terminate correctly (last-child semantics) at any depth, including past the indent fold
+- Tree tab body splits 70% timeline / 30% passages, each with its own scroll region (falls back to full height when there are no passages)
+
+### Fixed
+
+- Passages section growing over the timeline as passages accumulate, hiding branch controls — the timeline now keeps a guaranteed share of the panel
+
 ## [1.0.2] - 2026-08-10
 
 ### Fixed
