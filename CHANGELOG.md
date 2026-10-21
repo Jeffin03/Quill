@@ -12,6 +12,7 @@ Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Stale `activeBranchId` left behind by older sessions — self-heals on story load (falls back to the newest message) so old stories recover automatically
 - Empty API responses failing silently — now shows an error toast and puts the typed direction back in the instruction box for retry
 - Guardrail refusals being persisted as story content on error — refusals are now treated as a failed generation, not a partial save
+- Reasoning/analysis text leaking into the story from reasoning-capable models (e.g. Minimax's chain-of-thought on sensitive scenes) — "Analysis:" preambles, `<thinking>` blocks, and special tokens are now filtered out of saved prose, with safety floors so a normal story is never modified
 
 ### Added
 

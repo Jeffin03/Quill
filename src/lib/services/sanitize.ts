@@ -161,4 +161,94 @@ function isGatedProvider(provider: string): boolean {
 	return provider === 'openrouter' || provider === 'nim';
 }
 
-export { RULES, reset, sanitizeMessages, restoreText, isGuardrailRefusal, isGatedProvider };
+// ── Reasoning-leak filtering ─────────────────────────────────
+// Reasoning-capable models (e.g. Minimax via OpenRouter) sometimes leak their
+// chain-of-thought into the content channel — "Analysis:" preambles, consent
+// considerations, special tokens. These rules strip the obvious leaks while
+// staying conservative: a normal story is never modified, and the filter can
+// never return empty for non-empty input.
+
+/** Hard-leak artifacts: special tokens and stray closing tags. */
+const REASONING_SPECIAL_TOKENS =
+	/<\/?(?:analysis|thinking|reasoning|reflection|deliberation|thought)>|<\|(?:channel|call|message|end|begin|user|assistant|system)\|>|▃{6,}/gi;
+
+/** Balanced <analysis>…</analysis>-style blocks. */
+const REASONING_BLOCK_TAGS = [
+	'analysis',
+	'thinking',
+	'reasoning',
+	'reflection',
+	'deliberation',
+	'thought'
+];
+
+/** A line that is, or begins with, a reasoning header ("Analysis:", "**Reasoning:**", …). */
+const REASONING_HEADER_LINE =
+	/^[ \t]{0,3}>?[ \t]*[*_#>`~]*[ \t]*(analysis|reasoning|thoughts?|thinking|deliberation|self-?critique|assessment|commentary|director'?s?[ \t]+(notes?|take|aside|commentary)|internal[ \t]+monologue|content[ \t]+(check|policy|considerations?|warning)|safety[ \t]+(check|considerations?)|consent[ \t]+(check|considerations?))[ \t]*[*_#>`~]*(?:[ \t]*[:\-–—][^\n]*|[ \t]*)$/im;
+
+/** A line that signals the story itself starts here ("**Story:**", "Scene:", "Chapter 2", …). */
+const STORY_SIGNAL_LINE =
+	/^[ \t]{0,3}[*_#>`~\- ]*(story|the[ \t]+story|scene|the[ \t]+scene|prose|narrative|the[ \t]+narrative|response|continuation|chapter[ \t]+\w+|part[ \t]+\w+)[ \t]*[*_#>`~\- ]*(?::[ \t]*[*_#>`~\- ]*|[ \t]*)$/im;
+
+/** Paragraph cues that identify meta commentary rather than narrative. */
+const REASONING_META_PARAGRAPH =
+	/\b(the (user|reader|requester|prompt|author)|as an ai|as a language model|content (policy|policies|guidelines)|guardrails?|sensitive (content|topic|scene|material)|explicit (content|scene|material)|avoid (explicit|graphic|triggering)|make sure to|ensure (that|the|we)|I (should|need|must|want|will|plan|can) (write|start|begin|continue|include|avoid|ensure|depict|portray|handle|maintain|balance)|we (should|need|must) (write|ensure|avoid|maintain|balance)|this (scene|chapter|story) (should|needs|must|involves|requires|calls)|the scene (should|needs|involves|requires|calls)|narrative (should|needs|must|pace))/i;
+
+function stripReasoningLeak(content: string): string {
+	if (!content || !content.trim()) return content;
+
+	// 1. Balanced tag blocks (before token cleanup, which would break the tags)
+	let text = content;
+	for (const tag of REASONING_BLOCK_TAGS) {
+		text = text.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}\\s*>`, 'gi'), ' ');
+	}
+
+	// 2. Hard leaks: special tokens and stray closing tags
+	text = text.replace(REASONING_SPECIAL_TOKENS, ' ');
+
+	// 3. Reasoning headers (searched near the start only — leaks are leading
+	//    material; mid-story headings are left alone on purpose).
+	const header = REASONING_HEADER_LINE.exec(text.slice(0, 800));
+	if (header) {
+		const start = header.index;
+		const afterHeader = text.slice(start);
+		const signal = STORY_SIGNAL_LINE.exec(afterHeader);
+		if (signal && signal.index > 0) {
+			// Cut everything up to the story-start signal
+			text = text.slice(0, start) + afterHeader.slice(signal.index + signal[0].length);
+		} else {
+			// Consume the analysis paragraphs following the header
+			// (the header's own paragraph always goes)
+			const parts = afterHeader.split(/\n\s*\n/);
+			let consumed = 1;
+			while (
+				consumed < parts.length &&
+				consumed < 12 &&
+				REASONING_META_PARAGRAPH.test(parts[consumed])
+			) {
+				consumed++;
+			}
+			const kept = parts.slice(consumed).join('\n\n');
+			if (kept.trim() && kept.length >= content.length / 4) {
+				text = text.slice(0, start) + kept;
+			} else {
+				// Safety floor: drop just the header line itself
+				const withoutHeaderLine = parts.slice(1).join('\n\n');
+				text = text.slice(0, start) + (withoutHeaderLine || afterHeader);
+			}
+		}
+	}
+
+	// 4. Never return empty for non-empty input — worst case, keep the original.
+	return text.trim() || content.trim();
+}
+
+export {
+	RULES,
+	reset,
+	sanitizeMessages,
+	restoreText,
+	isGuardrailRefusal,
+	isGatedProvider,
+	stripReasoningLeak
+};

@@ -7,6 +7,7 @@
 
 import type { ContextCard } from '$lib/types';
 import { uuid } from '$lib/utils';
+import { stripReasoningLeak } from './sanitize';
 import * as llm from './llm';
 
 const CARD_BLOCK_REGEX =
@@ -46,9 +47,11 @@ export function parseCardUpdates(rawResponse: string): CardUpdate[] {
 
 /**
  * Strip the card block from the response, returning prose only.
+ * Also filters reasoning/analysis text leaked into the content channel by
+ * reasoning-capable models (see sanitize.stripReasoningLeak).
  */
 export function stripCardBlock(rawResponse: string): string {
-	return rawResponse.replace(CARD_BLOCK_REGEX, '').trim();
+	return stripReasoningLeak(rawResponse.replace(CARD_BLOCK_REGEX, '')).trim();
 }
 
 /**
