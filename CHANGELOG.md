@@ -4,6 +4,20 @@ All notable changes to Quill will be documented in this file.
 
 Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.4] - 2026-10-21
+
+### Fixed
+
+- Content window going blank ("The page is yours") after a failed generation — rollback paths (API error, empty response, timeout, stop) now restore `activeBranchId` to the previous message instead of leaving it pointing at the removed direction
+- Stale `activeBranchId` left behind by older sessions — self-heals on story load (falls back to the newest message) so old stories recover automatically
+- Empty API responses failing silently — now shows an error toast and puts the typed direction back in the instruction box for retry
+- Guardrail refusals being persisted as story content on error — refusals are now treated as a failed generation, not a partial save
+
+### Added
+
+- Timeline keeps the last successful generation's chain expanded by default — the latest content is always visible without opening collapsed branches
+- "Expand all" / "Reset view" toggle in the Timeline header
+
 ## [1.0.3] - 2026-10-21
 
 ### Added

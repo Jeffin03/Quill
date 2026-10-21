@@ -121,9 +121,41 @@
 	let userExpanded = new SvelteSet<string>();
 	let userCollapsed = new SvelteSet<string>();
 
+	// Ancestors of the row holding the LAST successful generation. Kept open by default
+	// so the latest content is always reachable without expanding branches by hand.
+	let latestChain = $derived.by(() => {
+		const set = new SvelteSet<string>();
+		const map = new Map(story.messages.map((m) => [m.id, m]));
+		let leaf: Message | null = null;
+		for (const m of story.messages) {
+			if (!m.content.trim() || m.role !== 'assistant') continue;
+			if (!leaf || m.timestamp > leaf.timestamp) leaf = m;
+		}
+		if (!leaf) {
+			// No successful generation yet — keep the newest direction reachable instead.
+			for (const m of story.messages) {
+				if (m.role === 'user' && m.content.trim() && (!leaf || m.timestamp > leaf.timestamp))
+					leaf = m;
+			}
+		}
+		if (!leaf) return set;
+		// Rows are user messages: the content row is the leaf itself (user) or its parent (assistant).
+		const rowId = leaf.role === 'assistant' ? leaf.parentId : leaf.id;
+		if (!rowId) return set;
+		let current = map.get(rowId)?.parentId ?? null;
+		while (current) {
+			const msg = map.get(current);
+			if (!msg) break;
+			if (msg.role === 'user') set.add(msg.id);
+			current = msg.parentId ?? null;
+		}
+		return set;
+	});
+
 	function defaultExpanded(msg: Message, depth: number): boolean {
-		// Top-level branches and the active path stay open; the rest start collapsed.
-		return depth === 0 || isOnActivePath(msg);
+		// Top-level branches, the active path, and the last successful generation's chain
+		// stay open; everything else starts collapsed.
+		return depth === 0 || isOnActivePath(msg) || latestChain.has(msg.id);
 	}
 
 	function isGroupExpanded(msg: Message, depth: number): boolean {
@@ -207,6 +239,32 @@
 	}
 
 	let timelineRows = $derived(buildTimeline());
+
+	let allGroupIds = $derived(
+		story.messages.filter((m) => m.role === 'user' && childrenOf(m).length > 0).map((m) => m.id)
+	);
+
+	/** True when every branch group in the story is visible and open right now. */
+	let allExpanded = $derived(
+		allGroupIds.length > 0 &&
+			allGroupIds.every((id) => {
+				const row = timelineRows.find((r) => r.msg.id === id);
+				return row ? row.expanded : false;
+			})
+	);
+
+	function toggleExpandAll() {
+		if (allExpanded) {
+			// Back to the default view: active path + latest generation chain open.
+			userExpanded.clear();
+			userCollapsed.clear();
+		} else {
+			for (const id of allGroupIds) {
+				userExpanded.add(id);
+				userCollapsed.delete(id);
+			}
+		}
+	}
 </script>
 
 <div class="flex flex-col h-full">
@@ -246,10 +304,21 @@
 					<div class="flex items-center gap-2 mb-1">
 						<GitBranch size={14} class="text-primary/70" />
 						<span class="text-xs text-muted-foreground uppercase tracking-widest"> Timeline </span>
+						<button
+							onclick={toggleExpandAll}
+							class="ml-auto px-1.5 py-0.5 rounded-md border border-border text-[10px] uppercase
+								tracking-wider text-muted-foreground hover:text-[#d4a853] hover:border-primary/40
+								transition-colors"
+							title={allExpanded
+								? 'Back to the default view — active path and latest generation open'
+								: 'Expand every branch in the timeline'}
+						>
+							{allExpanded ? 'Reset view' : 'Expand all'}
+						</button>
 					</div>
 					<p class="text-[11px] text-muted-foreground/60 leading-relaxed">
 						Use "Branch" on any passage to explore an alternate path. Tap the chevron to fold or
-						unfold a branch.
+						unfold a branch — the latest generation always stays visible.
 					</p>
 				</div>
 
