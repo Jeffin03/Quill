@@ -52,6 +52,26 @@
 	let viewMode = $state<ViewMode>('write');
 
 	let instruction = $state('');
+
+	// ── Prompt queue: last N submitted directions, navigable like shell history ──
+	const PROMPT_QUEUE_MAX = 2;
+	let promptQueue = $state<string[]>([]); // oldest → newest
+	let promptNavIndex = $state(-1); // -1 = live typing (not browsing)
+
+	function navigatePrompt(step: 1 | -1) {
+		const n = promptQueue.length;
+		if (!n) return;
+		let idx: number;
+		if (promptNavIndex === -1) {
+			// Entering browse mode: older ↦ newest entry, newer ↦ oldest entry
+			idx = step < 0 ? n - 1 : 0;
+		} else {
+			idx = (promptNavIndex + step + n) % n; // wrap around the queue
+		}
+		promptNavIndex = idx;
+		instruction = promptQueue[idx];
+	}
+
 	let generatingText = $state('');
 	let generating = $state(false);
 	let abortHandle: { abort: () => void } | null = null;
@@ -131,6 +151,12 @@
 		if (!instruction.trim() || generating) return;
 
 		const dir = instruction.trim();
+
+		// Remember it in the queue (even if the generation later fails) so the last
+		// two submitted directions can be recalled with the navigation buttons.
+		promptQueue = [...promptQueue.slice(-(PROMPT_QUEUE_MAX - 1)), dir];
+		promptNavIndex = -1;
+
 		instruction = '';
 		mobilePanel = 'write';
 
@@ -789,6 +815,9 @@
 					ongenerate={handleGenerate}
 					onstop={handleStop}
 					isgenerating={generating}
+					promptqueue={promptQueue}
+					promptnavindex={promptNavIndex}
+					onnavigateprompt={navigatePrompt}
 				/>
 			</div>
 		</div>
@@ -831,6 +860,9 @@
 					ongenerate={handleGenerate}
 					onstop={handleStop}
 					isgenerating={generating}
+					promptqueue={promptQueue}
+					promptnavindex={promptNavIndex}
+					onnavigateprompt={navigatePrompt}
 					compact
 				/>
 			{/if}

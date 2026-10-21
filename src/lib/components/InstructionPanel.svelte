@@ -1,19 +1,25 @@
 <script lang="ts">
 	import * as db from '$lib/services/db';
-	import { Send, Square, Shield, Wand2 } from '@lucide/svelte';
+	import { Send, Square, Shield, Wand2, ChevronUp, ChevronDown } from '@lucide/svelte';
 
 	let {
 		value = $bindable(),
 		ongenerate,
 		onstop,
 		isgenerating,
-		compact = false
+		compact = false,
+		promptqueue = [],
+		promptnavindex = -1,
+		onnavigateprompt
 	}: {
 		value: string;
 		ongenerate: (opts: { sanitize: boolean; rewrite: boolean }) => void;
 		onstop: () => void;
 		isgenerating: boolean;
 		compact?: boolean;
+		promptqueue?: string[];
+		promptnavindex?: number;
+		onnavigateprompt?: (step: 1 | -1) => void;
 	} = $props();
 
 	let textarea: HTMLTextAreaElement | undefined = $state();
@@ -50,9 +56,41 @@
 	}
 </script>
 
+{#snippet promptNav()}
+	<div class="flex items-center gap-1">
+		<button
+			type="button"
+			onclick={() => onnavigateprompt?.(-1)}
+			disabled={promptqueue.length === 0}
+			title="Older submitted direction"
+			aria-label="prompt-older"
+			class="p-1 rounded-md border border-border text-muted-foreground hover:text-[#d4a853]
+				hover:border-primary/40 disabled:opacity-30 disabled:hover:border-border transition-colors"
+		>
+			<ChevronUp size={11} />
+		</button>
+		<button
+			type="button"
+			onclick={() => onnavigateprompt?.(1)}
+			disabled={promptqueue.length === 0}
+			title="Newer submitted direction"
+			aria-label="prompt-newer"
+			class="p-1 rounded-md border border-border text-muted-foreground hover:text-[#d4a853]
+				hover:border-primary/40 disabled:opacity-30 disabled:hover:border-border transition-colors"
+		>
+			<ChevronDown size={11} />
+		</button>
+		{#if promptnavindex >= 0 && promptqueue.length > 0}
+			<span class="text-[10px] text-muted-foreground/50 tabular-nums ml-0.5">
+				{promptnavindex + 1}/{promptqueue.length}
+			</span>
+		{/if}
+	</div>
+{/snippet}
+
 {#if compact}
 	<div class="border-t border-border bg-[#0f0f15]">
-		<div class="flex gap-1.5 px-3 pt-2">
+		<div class="flex gap-1.5 px-3 pt-2 items-center">
 			<button
 				onclick={toggleSanitize}
 				class="flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border transition-colors
@@ -73,6 +111,7 @@
 				<Wand2 size={10} />
 				Rewrite
 			</button>
+			<div class="ml-auto">{@render promptNav()}</div>
 		</div>
 		<div class="px-3 py-2 flex items-end gap-2">
 			<div class="flex-1 relative">
@@ -197,7 +236,10 @@
 				</button>
 			</div>
 
-			<div class="text-[10px] text-muted-foreground/50 text-right">Ctrl+Enter to generate</div>
+			<div class="flex items-center justify-between gap-2">
+				{@render promptNav()}
+				<div class="text-[10px] text-muted-foreground/50">Ctrl+Enter to generate</div>
+			</div>
 
 			{#if isgenerating}
 				<button

@@ -17,6 +17,7 @@ Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Timeline keeps the last successful generation's chain expanded by default — the latest content is always visible without opening collapsed branches
 - "Expand all" / "Reset view" toggle in the Timeline header
+- Prompt recall queue: the last two submitted directions (even ones whose generation failed) can be re-filled into the instruction box with the ▲/▼ navigation buttons — cycles with wraparound and shows a live "1/2 · 2/2" counter
 
 ## [1.0.3] - 2026-10-21
 
