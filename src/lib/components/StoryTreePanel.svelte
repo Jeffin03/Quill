@@ -2,7 +2,7 @@
 	import type { Story, Message } from '$lib/types';
 	import { formatTimeShort } from '$lib/utils';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { GitBranch, Circle, GitFork, Image, X } from '@lucide/svelte';
+	import { GitBranch, Circle, GitFork, Image, X, ChevronDown } from '@lucide/svelte';
 
 	let {
 		story,
@@ -100,59 +100,114 @@
 	);
 
 	let hasPassages = $derived(narrativeMessages.length > 0);
+
+	// ── Timeline layout ────────────────────────────────────────────────
+	// Rows indent for the first MAX_INDENT_LEVELS levels, then fold into a fixed
+	// column so long branches can't drift diagonally out of the panel. Each row
+	// draws its own rails + elbow connectors, so hierarchy stays readable at any depth.
+	const INDENT_PX = 16;
+	const MAX_INDENT_LEVELS = 2;
+	const FOLD_X = MAX_INDENT_LEVELS * INDENT_PX + 8; // 40px — gutter holds the fold rail
+
+	function iconX(depth: number): number {
+		return depth < MAX_INDENT_LEVELS ? depth * INDENT_PX : FOLD_X;
+	}
+
+	function railX(depth: number): number {
+		return depth < MAX_INDENT_LEVELS ? depth * INDENT_PX + 7 : FOLD_X - 7;
+	}
+
+	// ── Collapsible branch groups ──────────────────────────────────────
+	let userExpanded = new SvelteSet<string>();
+	let userCollapsed = new SvelteSet<string>();
+
+	function defaultExpanded(msg: Message, depth: number): boolean {
+		// Top-level branches and the active path stay open; the rest start collapsed.
+		return depth === 0 || isOnActivePath(msg);
+	}
+
+	function isGroupExpanded(msg: Message, depth: number): boolean {
+		if (userCollapsed.has(msg.id)) return false;
+		if (userExpanded.has(msg.id)) return true;
+		return defaultExpanded(msg, depth);
+	}
+
+	function toggleExpand(msg: Message, expanded: boolean) {
+		if (expanded) {
+			userCollapsed.add(msg.id);
+			userExpanded.delete(msg.id);
+		} else {
+			userExpanded.add(msg.id);
+			userCollapsed.delete(msg.id);
+		}
+	}
+
+	type TimelineRow = {
+		msg: Message;
+		depth: number;
+		iconX: number;
+		parentRailX: number;
+		parentRailEndsHere: boolean;
+		ancestorRails: number[];
+		outgoingRailX: number;
+		hookedOutgoing: boolean;
+		expanded: boolean;
+		kidsCount: number;
+		hiddenCount: number;
+	};
+
+	function countDescendants(msg: Message): number {
+		let total = 0;
+		for (const kid of childrenOf(msg)) total += 1 + countDescendants(kid);
+		return total;
+	}
+
+	function buildTimeline(): TimelineRow[] {
+		const rows: TimelineRow[] = [];
+
+		const walk = (msg: Message, depth: number, ancestors: Message[]) => {
+			const kids = childrenOf(msg);
+			const expanded = kids.length > 0 && isGroupExpanded(msg, depth);
+			const parent = depth > 0 ? ancestors[depth - 1] : null;
+			const siblings = parent ? childrenOf(parent) : [];
+			const isLastKid = parent !== null && siblings[siblings.length - 1]?.id === msg.id;
+
+			// Ancestor columns whose guide line continues past this row.
+			const ancestorRails: number[] = [];
+			for (let k = 0; k < depth - 1; k++) {
+				const ancestor = ancestors[k];
+				const next = ancestors[k + 1];
+				const ancestorKids = childrenOf(ancestor);
+				const x = railX(k);
+				// Deeper ancestors share the fold rail — keep each x only once.
+				if (ancestorKids[ancestorKids.length - 1]?.id !== next.id && !ancestorRails.includes(x)) {
+					ancestorRails.push(x);
+				}
+			}
+
+			rows.push({
+				msg,
+				depth,
+				iconX: iconX(depth),
+				parentRailX: depth > 0 ? railX(depth - 1) : -1,
+				parentRailEndsHere: isLastKid,
+				ancestorRails,
+				outgoingRailX: expanded ? railX(depth) : -1,
+				hookedOutgoing: expanded && depth >= MAX_INDENT_LEVELS,
+				expanded,
+				kidsCount: kids.length,
+				hiddenCount: kids.length > 0 && !expanded ? countDescendants(msg) : 0
+			});
+
+			if (expanded) for (const kid of kids) walk(kid, depth + 1, [...ancestors, msg]);
+		};
+
+		for (const root of roots) walk(root, 0, []);
+		return rows;
+	}
+
+	let timelineRows = $derived(buildTimeline());
 </script>
-
-{#snippet branchNode(userMsg: Message, depth: number)}
-	{@const reply = replyTo(userMsg)}
-	{@const onPath = isOnActivePath(userMsg)}
-	{@const isActive = reply
-		? story.activeBranchId === reply.id
-		: story.activeBranchId === userMsg.id}
-	{@const kids = childrenOf(userMsg)}
-	<div class="relative" style:padding-left="{depth * 14}px">
-		<button
-			onclick={() => onswitchbranch(reply?.id ?? userMsg.id)}
-			class="w-full flex items-start gap-3 pr-3 py-3 rounded-xl text-left transition-all
-				{isActive
-				? 'bg-primary/10 border border-primary/25'
-				: onPath
-					? 'hover:bg-white/4 border border-transparent'
-					: 'opacity-60 hover:opacity-100 hover:bg-white/4 border border-transparent'}"
-		>
-			<div
-				class="mt-0.5 shrink-0 {isActive
-					? 'text-primary'
-					: onPath
-						? 'text-[#b8b4aa]'
-						: 'text-muted-foreground'}"
-			>
-				{#if depth === 0}
-					<Circle size={14} fill="currentColor" />
-				{:else}
-					<GitFork size={14} />
-				{/if}
-			</div>
-			<div class="min-w-0">
-				<div class="text-sm truncate {isActive ? 'text-[#d4a853]' : 'text-[#b8b4aa]'}">
-					{extractLabel(userMsg.content)}
-				</div>
-				{#if reply}
-					<p class="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2 font-serif">
-						{extractLabel(reply.content)}
-					</p>
-				{/if}
-			</div>
-		</button>
-
-		{#if kids.length > 0}
-			<div class="ml-2 border-l border-dashed border-primary/25">
-				{#each kids as child (child.id)}
-					{@render branchNode(child, depth + 1)}
-				{/each}
-			</div>
-		{/if}
-	</div>
-{/snippet}
 
 <div class="flex flex-col h-full">
 	<div class="flex border-b border-border">
@@ -193,18 +248,120 @@
 						<span class="text-xs text-muted-foreground uppercase tracking-widest"> Timeline </span>
 					</div>
 					<p class="text-[11px] text-muted-foreground/60 leading-relaxed">
-						Use "Branch" on any passage to explore an alternate path.
+						Use "Branch" on any passage to explore an alternate path. Tap the chevron to fold or
+						unfold a branch.
 					</p>
 				</div>
 
-				<div class="flex-1 min-h-0 overflow-y-auto px-3 pb-3 space-y-1">
+				<div class="flex-1 min-h-0 overflow-y-auto px-3 pb-3">
 					{#if roots.length === 0}
 						<div class="text-center py-10 text-sm text-muted-foreground">
 							No story yet — start writing to see the timeline.
 						</div>
 					{:else}
-						{#each roots as root (root.id)}
-							{@render branchNode(root, 0)}
+						{#each timelineRows as row (row.msg.id)}
+							{@const reply = replyTo(row.msg)}
+							{@const onPath = isOnActivePath(row.msg)}
+							{@const isActive = reply
+								? story.activeBranchId === reply.id
+								: story.activeBranchId === row.msg.id}
+							<div
+								class="relative flex items-stretch overflow-hidden rounded-xl border transition-all
+									{isActive
+									? 'bg-primary/10 border-primary/25'
+									: onPath
+										? 'hover:bg-white/4 border-transparent'
+										: 'opacity-60 hover:opacity-100 hover:bg-white/4 border-transparent'}"
+								style:padding-left="{row.iconX}px"
+							>
+								{#each row.ancestorRails as x (x)}
+									<span class="absolute inset-y-0 w-px bg-primary/30" style:left="{x}px"></span>
+								{/each}
+								{#if row.parentRailX >= 0}
+									<span
+										class="absolute w-px bg-primary/30 {row.parentRailEndsHere
+											? 'top-0 h-[21px]'
+											: 'inset-y-0'}"
+										style:left="{row.parentRailX}px"
+									></span>
+									<span
+										class="absolute h-px bg-primary/30"
+										style="left: {row.parentRailX}px; top: 21px; width: {row.iconX -
+											row.parentRailX}px"
+									></span>
+								{/if}
+								{#if row.outgoingRailX >= 0}
+									{#if row.hookedOutgoing}
+										<span
+											class="absolute h-px bg-primary/30"
+											style="left: {row.outgoingRailX}px; top: 28px; width: {row.iconX -
+												row.outgoingRailX}px"
+										></span>
+									{/if}
+									<span
+										class="absolute w-px bg-primary/30"
+										style="left: {row.outgoingRailX}px; top: 28px; bottom: 0"
+									></span>
+								{/if}
+
+								<button
+									onclick={() => onswitchbranch(reply?.id ?? row.msg.id)}
+									class="flex-1 min-w-0 flex items-start gap-3 py-3 pr-1 text-left"
+								>
+									<span
+										class="mt-0.5 shrink-0 {isActive
+											? 'text-primary'
+											: onPath
+												? 'text-[#b8b4aa]'
+												: 'text-muted-foreground'}"
+									>
+										{#if row.depth === 0}
+											<Circle size={14} fill="currentColor" />
+										{:else}
+											<GitFork size={14} />
+										{/if}
+									</span>
+									<span class="min-w-0 flex-1">
+										<span
+											class="block text-sm truncate {isActive
+												? 'text-[#d4a853]'
+												: 'text-[#b8b4aa]'}"
+										>
+											{extractLabel(row.msg.content)}
+										</span>
+										{#if reply}
+											<span
+												class="block text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2 font-serif"
+											>
+												{extractLabel(reply.content)}
+											</span>
+										{/if}
+									</span>
+								</button>
+
+								{#if row.kidsCount > 0}
+									<button
+										onclick={() => toggleExpand(row.msg, row.expanded)}
+										aria-expanded={row.expanded}
+										title={row.expanded
+											? 'Collapse branch'
+											: `Show ${row.hiddenCount} hidden item${row.hiddenCount === 1 ? '' : 's'}`}
+										class="shrink-0 self-center mr-1.5 flex items-center gap-1 px-1.5 py-1 rounded-md
+											text-[10px] transition-colors
+											{row.expanded
+											? 'text-muted-foreground hover:text-[#d4a853] hover:bg-white/6'
+											: 'text-[#d4a853] bg-primary/15 hover:bg-primary/25'}"
+									>
+										{#if !row.expanded}
+											<span class="tabular-nums">{row.hiddenCount}</span>
+										{/if}
+										<ChevronDown
+											size={12}
+											class="transition-transform {row.expanded ? '' : '-rotate-90'}"
+										/>
+									</button>
+								{/if}
+							</div>
 						{/each}
 					{/if}
 				</div>
