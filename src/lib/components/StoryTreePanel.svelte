@@ -68,7 +68,7 @@
 			/^now\s+(?:write|continue|add|show|have|make|describe|include)?\s*(?:a\s+)?(?:scene|chapter|passage)?\s*(?:where|with|in which|about)?/i,
 			/^(?:please|kindly|could you|can you|would you)\s+(?:write|continue|add|show|have|make|describe)?\s*(?:a\s+)?(?:scene|chapter|passage)?\s*(?:where|with|in which|about)?/i,
 			/^let'?s\s+(?:write|continue|add|have|see|show|move|proceed|shift|jump|cut|transition)?\s*(?:a\s+)?(?:scene|chapter|passage)?\s*(?:where|with|in which|about|to)?/i,
-			/^(?:then|next|after that|afterwards|meanwhile|simultaneously|subsequently),?\s*/i,
+			/^(?:then|next|after that|afterwards|meanwhile|simultaneously|subsequently),?\s*/i
 		];
 
 		let text = content.trim();
@@ -98,6 +98,8 @@
 	let visualizedMessages = $derived(
 		story.messages.filter((m) => m.role === 'assistant' && m.visualization)
 	);
+
+	let hasPassages = $derived(narrativeMessages.length > 0);
 </script>
 
 {#snippet branchNode(userMsg: Message, depth: number)}
@@ -134,11 +136,11 @@
 				<div class="text-sm truncate {isActive ? 'text-[#d4a853]' : 'text-[#b8b4aa]'}">
 					{extractLabel(userMsg.content)}
 				</div>
-			{#if reply}
-				<p class="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2 font-serif">
-					{extractLabel(reply.content)}
-				</p>
-			{/if}
+				{#if reply}
+					<p class="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2 font-serif">
+						{extractLabel(reply.content)}
+					</p>
+				{/if}
 			</div>
 		</button>
 
@@ -182,53 +184,59 @@
 	</div>
 
 	{#if treeTab === 'tree'}
-		<div class="px-3 pt-4 pb-2">
-			<div class="flex items-center gap-2 mb-1">
-				<GitBranch size={14} class="text-primary/70" />
-				<span class="text-xs text-muted-foreground uppercase tracking-widest"> Timeline </span>
-			</div>
-			<p class="text-[11px] text-muted-foreground/60 leading-relaxed">
-				Use "Branch" on any passage to explore an alternate path.
-			</p>
-		</div>
-
-		<div class="flex-1 overflow-y-auto px-3 pb-3 space-y-1">
-			{#if roots.length === 0}
-				<div class="text-center py-10 text-sm text-muted-foreground">
-					No story yet — start writing to see the timeline.
+		<div class="flex-1 min-h-0 flex flex-col">
+			<!-- Timeline: 70% of the body (falls back to full height when there are no passages) -->
+			<div class="min-h-0 flex flex-col {hasPassages ? 'basis-[70%] shrink-0 grow-0' : 'flex-1'}">
+				<div class="px-3 pt-4 pb-2 shrink-0">
+					<div class="flex items-center gap-2 mb-1">
+						<GitBranch size={14} class="text-primary/70" />
+						<span class="text-xs text-muted-foreground uppercase tracking-widest"> Timeline </span>
+					</div>
+					<p class="text-[11px] text-muted-foreground/60 leading-relaxed">
+						Use "Branch" on any passage to explore an alternate path.
+					</p>
 				</div>
-			{:else}
-				{#each roots as root (root.id)}
-					{@render branchNode(root, 0)}
-				{/each}
+
+				<div class="flex-1 min-h-0 overflow-y-auto px-3 pb-3 space-y-1">
+					{#if roots.length === 0}
+						<div class="text-center py-10 text-sm text-muted-foreground">
+							No story yet — start writing to see the timeline.
+						</div>
+					{:else}
+						{#each roots as root (root.id)}
+							{@render branchNode(root, 0)}
+						{/each}
+					{/if}
+				</div>
+			</div>
+
+			<!-- Passages: 30% of the body, scrolls independently -->
+			{#if hasPassages}
+				<div class="basis-[30%] shrink-0 grow-0 min-h-0 flex flex-col border-t border-border">
+					<div class="px-3 pt-2 pb-2 shrink-0">
+						<div class="text-[10px] text-muted-foreground uppercase tracking-widest">Passages</div>
+					</div>
+					<div class="flex-1 min-h-0 overflow-y-auto px-3 pb-3">
+						<div class="relative pl-4">
+							<div class="absolute left-1.5 top-0 bottom-0 w-px bg-white/8"></div>
+							{#each narrativeMessages as message (message.id)}
+								<div class="relative mb-3 last:mb-0">
+									<div
+										class="absolute -left-3 top-1.5 w-1.5 h-1.5 rounded-full bg-primary/40 border border-primary/60"
+									></div>
+									<div class="text-[11px] text-muted-foreground">
+										{formatTimeShort(message.timestamp)}
+									</div>
+									<p class="text-xs text-[#9992a6] leading-relaxed mt-0.5 line-clamp-2 font-serif">
+										{extractLabel(message.content)}
+									</p>
+								</div>
+							{/each}
+						</div>
+					</div>
+				</div>
 			{/if}
 		</div>
-
-		{#if narrativeMessages.length > 0}
-			<div class="border-t border-border">
-				<div class="px-3 pt-2 pb-3">
-					<div class="text-[10px] text-muted-foreground uppercase tracking-widest mb-3">
-						Passages
-					</div>
-					<div class="relative pl-4">
-						<div class="absolute left-1.5 top-0 bottom-0 w-px bg-white/8"></div>
-						{#each narrativeMessages as message (message.id)}
-							<div class="relative mb-3 last:mb-0">
-								<div
-									class="absolute -left-3 top-1.5 w-1.5 h-1.5 rounded-full bg-primary/40 border border-primary/60"
-								></div>
-								<div class="text-[11px] text-muted-foreground">
-									{formatTimeShort(message.timestamp)}
-								</div>
-							<p class="text-xs text-[#9992a6] leading-relaxed mt-0.5 line-clamp-2 font-serif">
-								{extractLabel(message.content)}
-							</p>
-							</div>
-						{/each}
-					</div>
-				</div>
-			</div>
-		{/if}
 	{:else}
 		<div class="flex-1 overflow-y-auto px-3 py-4">
 			{#if visualizedMessages.length === 0}
@@ -264,9 +272,9 @@
 								<div class="text-[10px] text-muted-foreground">
 									{formatTimeShort(message.timestamp)}
 								</div>
-							<p class="text-xs text-[#9992a6] leading-relaxed mt-0.5 line-clamp-2 font-serif">
-								{extractLabel(message.content)}
-							</p>
+								<p class="text-xs text-[#9992a6] leading-relaxed mt-0.5 line-clamp-2 font-serif">
+									{extractLabel(message.content)}
+								</p>
 							</div>
 						</div>
 					{/each}
