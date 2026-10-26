@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ContextCard } from '$lib/types';
+	import type { ContextCard, StoryRecap } from '$lib/types';
 	import { TYPE_CONFIG, FILTER_ORDER } from '$lib/utils';
 	import { generateCharacterStylePrompt } from '$lib/services/imageGen';
 	import { addToast } from '$lib/stores';
@@ -20,6 +20,7 @@
 	let {
 		cards,
 		syncing,
+		recap = null,
 		onaddcard,
 		onautogenerate,
 		onupdatecard,
@@ -27,6 +28,7 @@
 	}: {
 		cards: ContextCard[];
 		syncing: boolean;
+		recap?: StoryRecap | null;
 		onaddcard: (data: {
 			type: ContextCard['type'];
 			title: string;
@@ -255,13 +257,32 @@
 		{/each}
 	</div>
 
+	{#if recap?.text}
+		<details class="mx-3 mb-2 rounded-xl border border-border bg-white/4 overflow-hidden">
+			<summary
+				class="flex items-center gap-1.5 px-3 py-2 text-[10px] text-muted-foreground uppercase tracking-widest cursor-pointer select-none list-none hover:text-[#b8b4aa] transition-colors [&::-webkit-details-marker]:hidden"
+			>
+				<BookOpen size={12} class="text-primary/70" />
+				Story so far
+				<span class="ml-auto normal-case tracking-normal text-[9px] text-muted-foreground/50"
+					>auto</span
+				>
+			</summary>
+			<div
+				class="px-3 pb-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap max-h-44 overflow-y-auto"
+			>
+				{recap.text}
+			</div>
+		</details>
+	{/if}
+
 	{#if syncing}
 		<div
 			class="flex items-center gap-1.5 px-3 pb-2 text-[10px] text-muted-foreground"
 			style="animation: syncPulse 1.5s infinite"
 		>
 			<LoaderCircle size={11} class="animate-spin text-primary" />
-			Extracting cards…
+			Updating cards &amp; recap…
 		</div>
 	{/if}
 

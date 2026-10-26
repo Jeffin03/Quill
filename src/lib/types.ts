@@ -38,6 +38,12 @@ export interface Branch {
 	createdAt: string;
 }
 
+export interface StoryRecap {
+	text: string;
+	throughMessageId: string;
+	updatedAt: string;
+}
+
 export interface Story {
 	id: string;
 	title: string;
@@ -47,6 +53,8 @@ export interface Story {
 	branches: Branch[];
 	activeBranchId: string | null;
 	rootMessageId: string | null;
+	/** Compact rolling summary of events up to `throughMessageId`. */
+	recap?: StoryRecap;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -67,6 +75,8 @@ export interface APIEntry {
 	apiKey?: string;
 	model: string;
 	label?: string;
+	/** Maximum input+output context reported by the provider, in tokens. */
+	contextLength?: number;
 	capabilities?: {
 		text?: boolean;
 		image?: boolean;

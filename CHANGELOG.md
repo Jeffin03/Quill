@@ -4,6 +4,22 @@ All notable changes to Quill will be documented in this file.
 
 Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Per-model context windows — auto-detected from OpenRouter, NIM, LM Studio, and Ollama during model discovery, with a manual override in the API manager
+- Token-budgeted history — requests now reserve output tokens and trim old turns to fit the active model instead of sending a fixed 20-message slice
+- Rolling story recap — the existing card-extraction call now also maintains a compact "Story so far" summary; dropped turns fall back to a deterministic compressed recap when extraction fails
+- Context-safe failover — endpoints too small for the current payload are skipped, and local rewrite/fallback paths rebuild context for the local model's window
+
+### Fixed
+
+- Generic "All API endpoints failed" errors — failover now reports the actual endpoint and provider message (429/403/404, etc.) and logs each failure to the console
+- OpenRouter stream errors returned inside a 200 SSE response being silently ignored — error events now surface and stop failover once partial prose has already streamed
+- Reasoning models consuming the entire card-extraction token budget — OpenRouter card calls now use low reasoning effort and a higher output allowance
+- Reasoning-only story streams failing silently — if a model spends its whole output budget on hidden reasoning, the request now reports an actionable error and can fail over instead of saving an empty response
+
 ## [1.0.4] - 2026-10-21
 
 ### Fixed

@@ -7,6 +7,7 @@
 
 import type { APIEntry } from '$lib/types';
 import { getConfig, type AppConfig } from './db';
+import { getContextWindow } from './context';
 
 // ── Entry Resolution ─────────────────────
 
@@ -122,6 +123,51 @@ export function getEntryConfig(entry: APIEntry | undefined): EntryConfig | null 
 	};
 }
 
+// ── Error Formatting ─────────────────────
+
+function truncateDetail(text: string, max = 320): string {
+	const clean = text.replace(/\s+/g, ' ').trim();
+	if (clean.length <= max) return clean;
+	return clean.slice(0, max - 1).trimEnd() + '…';
+}
+
+/**
+ * Turn an OpenAI-compatible error body into something a human (and the toast)
+ * can actually read. OpenRouter nests the useful text under error.message and
+ * sometimes error.metadata.raw.
+ */
+function formatApiError(status: number, body: string): string {
+	let detail = body;
+	try {
+		const parsed = JSON.parse(body) as {
+			error?: { message?: string; metadata?: { raw?: string } };
+			message?: string;
+		};
+		const message = parsed?.error?.message || parsed?.message;
+		if (message) detail = message;
+		const raw = parsed?.error?.metadata?.raw;
+		if (raw && !detail.includes(raw)) detail += ` — ${raw}`;
+	} catch {
+		// Body is not JSON; use it as-is.
+	}
+	return `LLM API error (${status}): ${truncateDetail(detail) || 'Unknown error'}`;
+}
+
+function formatStreamError(error: unknown): string {
+	if (typeof error === 'string') return `LLM stream error: ${truncateDetail(error)}`;
+	if (error && typeof error === 'object') {
+		const e = error as { message?: string; metadata?: { raw?: string } };
+		let detail = e.message || JSON.stringify(error);
+		if (e.metadata?.raw && !detail.includes(e.metadata.raw)) detail += ` — ${e.metadata.raw}`;
+		return `LLM stream error: ${truncateDetail(detail)}`;
+	}
+	return 'LLM stream error: Unknown error';
+}
+
+function endpointLabel(entry: APIEntry): string {
+	return entry.label || entry.model || entry.provider;
+}
+
 // ── Streaming ────────────────────────────
 
 export interface StreamCallbacks {
@@ -168,13 +214,23 @@ async function _streamChat(
 
 	if (!response.ok) {
 		const errorText = await response.text().catch(() => 'Unknown error');
-		throw new Error(`LLM API error (${response.status}): ${errorText}`);
+		throw new Error(formatApiError(response.status, errorText));
 	}
 
 	const reader = response.body!.getReader();
 	const decoder = new TextDecoder();
 	let buffer = '';
 	let fullContent = '';
+	let receivedReasoning = false;
+
+	const finish = () => {
+		if (!fullContent.trim() && receivedReasoning) {
+			throw new Error(
+				'Model returned reasoning but no story text — it likely used the entire output budget on hidden reasoning. Increase Max Tokens or choose a non-reasoning model.'
+			);
+		}
+		return fullContent;
+	};
 
 	try {
 		while (true) {
@@ -190,17 +246,39 @@ async function _streamChat(
 				if (!trimmed || !trimmed.startsWith('data: ')) continue;
 
 				const data = trimmed.slice(6);
-				if (data === '[DONE]') return fullContent;
+				if (data === '[DONE]') return finish();
 
 				try {
-					const parsed = JSON.parse(data);
-					const content = parsed.choices?.[0]?.delta?.content || '';
+					const parsed = JSON.parse(data) as {
+						error?: unknown;
+						choices?: Array<{
+							delta?: {
+								content?: string;
+								reasoning?: string;
+								reasoning_content?: string;
+								reasoning_details?: unknown[];
+							};
+						}>;
+					};
+					if (parsed.error) throw new Error(formatStreamError(parsed.error));
+
+					const delta = parsed.choices?.[0]?.delta;
+					if (
+						delta?.reasoning ||
+						delta?.reasoning_content ||
+						(delta?.reasoning_details && delta.reasoning_details.length > 0)
+					) {
+						receivedReasoning = true;
+					}
+
+					const content = delta?.content || '';
 					if (content) {
 						fullContent += content;
 						onChunk?.(content);
 					}
-				} catch {
-					// Skip malformed chunks
+				} catch (err) {
+					if (err instanceof SyntaxError) continue;
+					throw err;
 				}
 			}
 		}
@@ -208,7 +286,12 @@ async function _streamChat(
 		reader?.releaseLock();
 	}
 
-	return fullContent;
+	return finish();
+}
+
+export interface StreamOptions {
+	/** Skip failover entries that cannot fit the already-built payload. */
+	minimumContextWindow?: number;
 }
 
 /**
@@ -216,12 +299,37 @@ async function _streamChat(
  */
 export function streamChat(
 	messages: { role: string; content: string }[],
-	callbacks: StreamCallbacks
+	callbacks: StreamCallbacks,
+	options: StreamOptions = {}
 ): StreamHandle {
 	const controller = new AbortController();
 	const candidates: APIEntry[] = [];
+	const failures: { entry: APIEntry; error: Error }[] = [];
 	let currentIdx = 0;
 	let currentTimeoutId: ReturnType<typeof setTimeout> | null = null;
+	let emittedAnyContent = false;
+
+	const reportAllFailed = () => {
+		for (const failure of failures) {
+			console.warn(`[LLM] ${endpointLabel(failure.entry)} failed: ${failure.error.message}`);
+		}
+		if (failures.length === 0) {
+			callbacks.onError?.(new Error('All API endpoints failed'));
+			return;
+		}
+		if (failures.length === 1) {
+			callbacks.onError?.(failures[0].error);
+			return;
+		}
+		const codes = failures.map((f) => {
+			const match = f.error.message.match(/\((\d{3})\)/);
+			return match?.[1] ?? 'error';
+		});
+		const last = failures[failures.length - 1].error.message;
+		callbacks.onError?.(
+			new Error(`All ${failures.length} text endpoints failed (${codes.join(', ')}). Last: ${last}`)
+		);
+	};
 
 	const tryNext = async () => {
 		if (controller.signal.aborted) {
@@ -229,7 +337,7 @@ export function streamChat(
 			return;
 		}
 		if (currentIdx >= candidates.length) {
-			callbacks.onError?.(new Error('All API endpoints failed'));
+			reportAllFailed();
 			return;
 		}
 
@@ -245,18 +353,32 @@ export function streamChat(
 		resetTimeout();
 
 		const wrappedOnChunk = (chunk: string) => {
+			if (chunk) emittedAnyContent = true;
 			resetTimeout();
 			callbacks.onChunk?.(chunk);
 		};
 
 		try {
 			const config = await getConfig();
-			const fullContent = await _streamChat(entry, messages, controller.signal, config, wrappedOnChunk);
+			const fullContent = await _streamChat(
+				entry,
+				messages,
+				controller.signal,
+				config,
+				wrappedOnChunk
+			);
 			if (currentTimeoutId) clearTimeout(currentTimeoutId);
 			callbacks.onDone?.(fullContent);
 		} catch (err: unknown) {
 			if (currentTimeoutId) clearTimeout(currentTimeoutId);
 			if (err instanceof Error && err.name !== 'AbortError') {
+				if (emittedAnyContent) {
+					// Restarting after partial prose would duplicate it in the UI.
+					console.warn(`[LLM] ${endpointLabel(entry)} failed mid-stream: ${err.message}`);
+					callbacks.onError?.(err);
+					return;
+				}
+				failures.push({ entry, error: err });
 				currentIdx++;
 				tryNext();
 			} else if (timedOut) {
@@ -270,7 +392,12 @@ export function streamChat(
 	(async () => {
 		const config = await getConfig();
 		const all = getTextCandidates(config);
-		candidates.push(...all);
+		const fitting = options.minimumContextWindow
+			? all.filter((entry) => getContextWindow(entry) >= options.minimumContextWindow!)
+			: all;
+		// The primary entry should always fit. If filtering somehow removes every
+		// candidate, keep the original order and let the normal error path report it.
+		candidates.push(...(fitting.length > 0 ? fitting : all));
 
 		if (candidates.length === 0) {
 			callbacks.onError?.(
@@ -312,7 +439,13 @@ export function streamChatWithEntry(
 	(async () => {
 		try {
 			const config = await getConfig();
-			const fullContent = await _streamChat(entry, messages, controller.signal, config, wrappedOnChunk);
+			const fullContent = await _streamChat(
+				entry,
+				messages,
+				controller.signal,
+				config,
+				wrappedOnChunk
+			);
 			callbacks.onDone?.(fullContent);
 		} catch (err: unknown) {
 			if (err instanceof Error && err.name !== 'AbortError') {
@@ -337,6 +470,12 @@ export interface ChatOptions {
 	maxTokens?: number;
 	temperature?: number;
 	responseFormat?: 'json';
+	reasoning?: {
+		effort?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'none';
+		max_tokens?: number;
+		exclude?: boolean;
+		enabled?: boolean;
+	};
 }
 
 /**
@@ -367,6 +506,13 @@ async function _chat(
 		body.response_format = { type: 'json_object' };
 	}
 
+	// OpenRouter supports a unified reasoning control. Keeping card/recap
+	// extraction at low effort leaves room for the JSON answer instead of
+	// spending the whole output budget on hidden reasoning tokens.
+	if (options.reasoning && entry.provider === 'openrouter') {
+		body.reasoning = options.reasoning;
+	}
+
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), 60000);
 
@@ -382,10 +528,11 @@ async function _chat(
 
 		if (!response.ok) {
 			const errorText = await response.text().catch(() => 'Unknown error');
-			throw new Error(`LLM API error (${response.status}): ${errorText}`);
+			throw new Error(formatApiError(response.status, errorText));
 		}
 
 		const data = await response.json();
+		if (data.error) throw new Error(formatStreamError(data.error));
 		return data.choices?.[0]?.message?.content || '';
 	} catch (err) {
 		clearTimeout(timeoutId);

@@ -21,28 +21,113 @@ export interface CardUpdate {
 	fields?: Record<string, string>;
 }
 
-/**
- * Parse context card update instructions from the LLM response.
- * Returns an array of card operations (create/update/delete).
- */
-export function parseCardUpdates(rawResponse: string): CardUpdate[] {
-	const match = rawResponse.match(CARD_BLOCK_REGEX);
-	if (!match) return [];
+export interface CardExtractionResult {
+	updates: CardUpdate[];
+	recap?: string;
+}
 
-	const jsonStr = match[1].trim();
+const CARD_TYPES: ContextCard['type'][] = ['character', 'relationship', 'plot', 'world', 'arc'];
+
+function normalizeUpdate(raw: unknown): CardUpdate | null {
+	if (!raw || typeof raw !== 'object') return null;
+	const o = raw as Record<string, unknown>;
+
+	let action: CardUpdate['action'];
+	if (o.action === 'create' || o.action === 'add') action = 'create';
+	else if (o.action === 'delete' || o.action === 'remove') action = 'delete';
+	else if (o.action === 'update' || o.action === 'edit') action = 'update';
+	else return null;
+
+	const title =
+		typeof o.title === 'string'
+			? o.title
+			: typeof o.target === 'string'
+				? o.target
+				: typeof o.name === 'string'
+					? o.name
+					: undefined;
+	const id = typeof o.id === 'string' ? o.id : undefined;
+	const type = CARD_TYPES.includes(o.type as ContextCard['type'])
+		? (o.type as ContextCard['type'])
+		: undefined;
+
+	let fields: Record<string, string> | undefined;
+	if (o.fields && typeof o.fields === 'object' && !Array.isArray(o.fields)) {
+		fields = Object.fromEntries(
+			Object.entries(o.fields as Record<string, unknown>).map(([k, v]) => [k, String(v)])
+		);
+	} else if (typeof o.description === 'string') {
+		fields = { description: o.description };
+	} else if (typeof o.details === 'string') {
+		fields = { description: o.details };
+	}
+
+	if (!title && !id) return null;
+	return { action, type, id, title, fields };
+}
+
+function normalizeCardResult(parsed: unknown): CardExtractionResult {
+	if (Array.isArray(parsed)) {
+		return { updates: parsed.map(normalizeUpdate).filter((u): u is CardUpdate => !!u) };
+	}
+	if (!parsed || typeof parsed !== 'object') return { updates: [] };
+
+	const obj = parsed as {
+		cards?: unknown;
+		updates?: unknown;
+		cardUpdates?: unknown;
+		recap?: unknown;
+		summary?: unknown;
+	};
+	const rawUpdates = Array.isArray(obj.cards)
+		? obj.cards
+		: Array.isArray(obj.updates)
+			? obj.updates
+			: Array.isArray(obj.cardUpdates)
+				? obj.cardUpdates
+				: [];
+	const updates = rawUpdates.map(normalizeUpdate).filter((u): u is CardUpdate => !!u);
+	const recap =
+		typeof obj.recap === 'string'
+			? obj.recap.trim()
+			: typeof obj.summary === 'string'
+				? obj.summary.trim()
+				: undefined;
+
+	return { updates, recap: recap || undefined };
+}
+
+/**
+ * Parse card updates plus the optional rolling recap from the LLM response.
+ */
+export function parseCardResult(rawResponse: string): CardExtractionResult {
+	const match = rawResponse.match(CARD_BLOCK_REGEX);
+	if (!match) return { updates: [] };
+
+	const jsonStr = match[1]
+		.trim()
+		.replace(/^```(?:json)?\s*/i, '')
+		.replace(/\s*```$/i, '')
+		.trim();
 
 	try {
-		return JSON.parse(jsonStr);
+		return normalizeCardResult(JSON.parse(jsonStr));
 	} catch (e) {
 		console.warn('[CardEngine] JSON parse failed, attempting repair...', (e as Error).message);
 		try {
-			const repaired = repairJson(jsonStr);
-			return JSON.parse(repaired);
+			return normalizeCardResult(JSON.parse(repairJson(jsonStr)));
 		} catch (e2) {
 			console.error('[CardEngine] Failed to repair JSON:', (e2 as Error).message);
-			return [];
+			return { updates: [] };
 		}
 	}
+}
+
+/**
+ * Parse only context card update instructions (create/update/delete).
+ */
+export function parseCardUpdates(rawResponse: string): CardUpdate[] {
+	return parseCardResult(rawResponse).updates;
 }
 
 /**

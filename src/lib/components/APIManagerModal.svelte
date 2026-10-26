@@ -163,6 +163,8 @@
 	let port = $state('11434');
 	let apiKey = $state('');
 	let model = $state('');
+	let contextLength = $state<number | ''>('');
+	let contextLengthDirty = $state(false);
 	let entryCapabilities = $state<Capabilities>({ text: true });
 	let assignments = $state<Record<string, boolean>>({ story: true, cards: true, prompts: false });
 
@@ -173,10 +175,16 @@
 		entryCapabilities.text ? TEXT_FEATURES : entryCapabilities.image ? IMAGE_FEATURES : []
 	);
 
-	type DiscoveredModel = { id: string; name: string; free: boolean };
+	type DiscoveredModel = {
+		id: string;
+		name: string;
+		free: boolean;
+		contextLength?: number;
+	};
 
 	let discoveredModels = $state<DiscoveredModel[]>([]);
 	let discoveringModels = $state(false);
+	let selectedDiscovered = $derived(discoveredModels.find((m) => m.id === model.trim()));
 
 	// Auto-discover models when entering step 2
 	$effect(() => {
@@ -219,6 +227,8 @@
 		port = '11434';
 		apiKey = '';
 		model = '';
+		contextLength = '';
+		contextLengthDirty = false;
 		entryCapabilities = { text: true };
 		assignments = { story: true, cards: true, prompts: false };
 		discoveredModels = [];
@@ -236,6 +246,8 @@
 		port = split.port || LOCAL_DEFAULT_PORT[entry.provider] || '11434';
 		apiKey = entry.apiKey || '';
 		model = entry.model;
+		contextLength = entry.contextLength ?? '';
+		contextLengthDirty = false;
 
 		const routing = config?.featureRouting ?? {};
 		if (entryCapabilities.text) {
@@ -258,6 +270,8 @@
 		port = '11434';
 		apiKey = '';
 		model = '';
+		contextLength = '';
+		contextLengthDirty = false;
 		entryCapabilities = { text: true };
 		assignments = { story: true, cards: true, prompts: false };
 	}
@@ -284,22 +298,32 @@
 				const res = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(5000) });
 				if (res.ok) {
 					const data = await res.json();
-					models = (data.models ?? []).map((m: { name: string }) => ({
-						id: m.name,
-						name: m.name,
-						free: true
-					}));
+					models = (data.models ?? []).map(
+						(m: {
+							name: string;
+							context_length?: number;
+							details?: { context_length?: number };
+						}) => ({
+							id: m.name,
+							name: m.name,
+							free: true,
+							contextLength: m.context_length ?? m.details?.context_length
+						})
+					);
 				}
 			} else if (selectedProvider === 'lmstudio') {
 				const baseUrl = `http://${host}:${port}`;
 				const res = await fetch(`${baseUrl}/v1/models`, { signal: AbortSignal.timeout(5000) });
 				if (res.ok) {
 					const data = await res.json();
-					models = (data.data ?? []).map((m: { id: string }) => ({
-						id: m.id,
-						name: m.id,
-						free: true
-					}));
+					models = (data.data ?? []).map(
+						(m: { id: string; context_length?: number; max_context_length?: number }) => ({
+							id: m.id,
+							name: m.id,
+							free: true,
+							contextLength: m.context_length ?? m.max_context_length
+						})
+					);
 				}
 			} else if (selectedProvider === 'openrouter' && apiKey) {
 				const res = await fetch('https://openrouter.ai/api/v1/models', {
@@ -312,11 +336,13 @@
 						(m: {
 							id: string;
 							name: string;
+							context_length?: number;
 							pricing?: { prompt?: string; completion?: string };
 						}) => ({
 							id: m.id,
 							name: m.name || m.id,
-							free: m.pricing?.prompt === '0' && m.pricing?.completion === '0'
+							free: m.pricing?.prompt === '0' && m.pricing?.completion === '0',
+							contextLength: m.context_length
 						})
 					);
 					models.sort((a, b) =>
@@ -331,10 +357,11 @@
 					});
 					if (res.ok) {
 						const data = await res.json();
-						models = (data.data ?? []).map((m: { id: string }) => ({
+						models = (data.data ?? []).map((m: { id: string; context_length?: number }) => ({
 							id: m.id,
 							name: m.id,
-							free: true
+							free: true,
+							contextLength: m.context_length
 						}));
 					}
 				} catch {
@@ -357,13 +384,23 @@
 
 	async function finishAdd() {
 		if (!config || !prov) return;
+		const trimmedModel = model.trim();
+		const existingEntry = editingEntryId
+			? (config.apiEntries ?? []).find((e) => e.id === editingEntryId)
+			: undefined;
+		const resolvedContextLength =
+			contextLengthDirty && typeof contextLength === 'number' && contextLength > 0
+				? contextLength
+				: (selectedDiscovered?.contextLength ??
+					(existingEntry?.model === trimmedModel ? existingEntry.contextLength : undefined));
 		const entry: APIEntry = {
 			id: editingEntryId || uuid(),
 			provider: prov.id as APIEntry['provider'],
 			host: isLocal ? `http://${host}:${port}` : '',
 			apiKey: isLocal ? undefined : apiKey || undefined,
-			model: model.trim(),
+			model: trimmedModel,
 			label: label.trim() || prov.name,
+			contextLength: resolvedContextLength,
 			capabilities: entryCapabilities
 		};
 
@@ -748,6 +785,27 @@
 								{/if}
 								<p class="text-[10px] text-muted-foreground/60 mt-1.5">
 									Use the model name exactly as your provider expects it.
+								</p>
+							</div>
+							<div>
+								<label for="api-context-length" class="text-xs text-muted-foreground block mb-1.5">
+									Context window (tokens)
+								</label>
+								<input
+									id="api-context-length"
+									type="number"
+									min="2048"
+									step="1024"
+									bind:value={contextLength}
+									oninput={() => (contextLengthDirty = true)}
+									placeholder={selectedDiscovered?.contextLength
+										? String(selectedDiscovered.contextLength)
+										: 'Auto-detect'}
+									class="w-full bg-input-background border border-border text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm outline-none focus:border-primary/40"
+								/>
+								<p class="text-[10px] text-muted-foreground/60 mt-1.5">
+									Auto-detected when the provider reports it. Quill reserves output tokens and trims
+									old turns when the story exceeds this window.
 								</p>
 							</div>
 							{#if model}
